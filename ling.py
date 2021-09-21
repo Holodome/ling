@@ -6,8 +6,7 @@ from collections import defaultdict
 
 
 class LingKind(enum.Enum):
-    NONE = 0x0
-    ADJUNCT = enum.auto()
+    ADJUNCT = 0x0
     AGENT = enum.auto()
     PREDICATE = enum.auto()
     OBJECT = enum.auto()
@@ -16,6 +15,7 @@ class LingKind(enum.Enum):
 
     # Маркер окончания
     COUNT = enum.auto()
+    NONE = ADJUNCT
 
 
 LING_KIND_STRINGS = [
@@ -26,7 +26,7 @@ LING_KIND_STRINGS = [
     "Инструмент"
 ]
 
-assert len(LING_KIND_STRINGS) == LingKind.COUNT.value - 1
+assert len(LING_KIND_STRINGS) == LingKind.COUNT.value
 
 COLOR_TABLE = [
     "red",
@@ -39,7 +39,7 @@ COLOR_TABLE = [
 
 
 def get_parts_from_marks(text, marks):
-    parts = [(text, LingKind.NONE)]
+    parts = [(text, LingKind.ADJUNCT)]
     # Algorithm pass
     for mark in marks:
         start, end, kind = mark
@@ -167,19 +167,21 @@ class TextParseState:
                 color = COLOR_TABLE[part[1].value - 1]
                 part_html = f"<font color={color}>{part_html}</font>"
             html += part_html
+        html = html.replace("\n", "<br>")
         self.html_formatted_text = html
 
     def get_structured_output(self):
         result = [[] for _ in range(LingKind.COUNT.value)]
         parts = self.get_parts_cached()
-        print(parts)
         for part in parts:
             idx = part[1].value
             result[idx].append(part[0])
-        return parts
+        return result
 
     def mark(self, sel_start, sel_end, kind):
         result = False
+        # assert 0 <= sel_start <= len(self.text) and \
+        #     0 <= sel_end <= len(self.text)
         # @TODO validate
         if sel_start != sel_end:
             self.mark_generation += 1
