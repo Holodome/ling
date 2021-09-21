@@ -9,7 +9,6 @@ class LingTable(QtWidgets.QTableWidget):
         row_count = max(map(len, output))
         self.setRowCount(row_count)
         self.setColumnCount(column_count)
-        print(output)
         for col_i, col in enumerate(output):
             for row_i, it in enumerate(col):
                 item = QtWidgets.QTableWidgetItem(it)

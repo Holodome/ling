@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>600</width>
-    <height>600</height>
+    <height>438</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -84,6 +84,32 @@
     </property>
     <property name="text">
      <string>Открыть файл</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="save_btn">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>350</y>
+      <width>112</width>
+      <height>32</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Сохранить</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="open_from_output_btn">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>10</y>
+      <width>231</width>
+      <height>32</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Открыть файл результата</string>
     </property>
    </widget>
   </widget>

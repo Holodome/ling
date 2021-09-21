@@ -3,12 +3,18 @@ from ling import *
 from table import LingTable
 
 
+def reformat_text(text):
+    result = " ".join(text.split())
+    return result
+
+
 class Application(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi("app.ui", self)
         self.init_ui()
 
+        self.parse_state = TextParseState()
         self.is_edit_enabled = False
 
     def init_ui(self):
@@ -21,21 +27,24 @@ class Application(QtWidgets.QMainWindow):
         self.input_lock_btn.stateChanged.connect(self._do_input_lock)
         self.open_file_btn.clicked.connect(self._load_from_text_file)
         self.show_result_btn.clicked.connect(self._show_result)
+        self.save_btn.clicked.connect(self._save)
+        self.open_from_output_btn.clicked.connect(self._load_output)
 
     def start_edit(self, start, text=None):
         if text is None:
             text = self.text_edit.toPlainText()
+        text = reformat_text(text)
 
         if start:
             self.is_edit_enabled = True
             self.text_edit.setReadOnly(True)
-            self.text_edit.setPlainText(text)
-            self.parse_state = TextParseState(text)
+            self.text_edit.setHtml(self.parse_state.html_formatted_text)
+            self.parse_state.init_for_text(text)
             self.input_lock_btn.setChecked(True)
         else:
             self.is_edit_enabled = False
             self.text_edit.setReadOnly(False)
-            self.text_edit.setPlainText(self.parse_state.text)
+            self.text_edit.setHtml(self.parse_state.html_formatted_text)
             self.input_lock_btn.setChecked(False)
 
     def _do_input_lock(self):
@@ -63,7 +72,22 @@ class Application(QtWidgets.QMainWindow):
     def _show_result(self):
         output = self.parse_state.get_structured_output()
         window = QtWidgets.QMainWindow(self)
-        table = LingTable(output)
+        table = LingTable(output.table)
         window.setCentralWidget(table)
         window.resize(table.size())
         window.show()
+
+    def _save(self):
+        filename = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", filter="*.csv")[0]
+        if filename:
+            with open(filename, "w") as file:
+                struct = self.parse_state.get_structured_output()
+                struct.to_csv(file)
+
+    def _load_output(self):
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", filter="*.csv")[0]
+        if filename:
+            with open(filename) as file:
+                struct = StructuredOutput.from_csv(file)
+                self.parse_state.init_from_output(struct)
+                self.text_edit.setHtml(self.parse_state.html_formatted_text)

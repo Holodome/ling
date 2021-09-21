@@ -1,8 +1,9 @@
 import enum
 import dataclasses
-from typing import List, DefaultDict
+from typing import List, DefaultDict, Tuple
 import re
 from collections import defaultdict
+import csv
 
 
 class LingKind(enum.Enum):
@@ -53,7 +54,6 @@ def get_parts_from_marks(text, marks):
             if end > cursor and cursor + len(part[0]) >= start:
                 parts_overlapped.append((i, cursor))
             cursor += len(part[0])
-        print(parts_overlapped)
 
         new_parts = parts.copy()
         idx_advance = 0
@@ -137,12 +137,52 @@ def test():
         (2, 6, LingKind.NONE)
     ]
     parts = get_parts_from_marks(text, marks)
-    print(parts)
     exit(0)
 
 
+@dataclasses.dataclass
+class StructuredOutput:
+    text: str
+    parts: List[Tuple[str, LingKind]]
+    table: List[List[str]]
+    marks: List[Tuple[int, int, LingKind]]
+
+    def to_csv(self, file):
+        writer = csv.writer(file)
+        writer.writerow([self.text])
+        row1 = list(map(lambda it: it[0], self.parts))
+        row2 = list(map(lambda it: it[1].value, self.parts))
+        writer.writerow(row1)
+        writer.writerow(row2)
+        row3 = list(map(lambda it: it[0], self.marks))
+        row4 = list(map(lambda it: it[1], self.marks))
+        row5 = list(map(lambda it: it[2].value, self.marks))
+        writer.writerow(row3)
+        writer.writerow(row4)
+        writer.writerow(row5)
+        for it in self.table:
+            writer.writerow(it)
+
+    @staticmethod
+    def from_csv(file):
+        reader = csv.reader(file)
+        row0 = next(reader)
+        text = row0[0]
+        row1 = next(reader)
+        row2 = next(reader)
+        parts = [(row1[i], LingKind(int(row2[i]))) for i in range(len(row1))]
+        row3 = next(reader)
+        row4 = next(reader)
+        row5 = next(reader)
+        marks = [(int(row3[i]), int(row4[i]), LingKind(int(row5[i]))) for i in range(len(row3))]
+        table = []
+        for row in reader:
+            table.append(row)
+        return StructuredOutput(text, parts, table, marks)
+
+
 class TextParseState:
-    def __init__(self, text):
+    def __init__(self, text=""):
         self.text = text
         self.marks = []
 
@@ -151,6 +191,20 @@ class TextParseState:
         self.last_parts = None
         self.last_parts_generation = None
 
+    def init_for_text(self, text):
+        if text != self.text:
+            self.text = text
+            self.html_formatted_text = text
+            self.marks = []
+
+    def init_from_output(self, output):
+        self.text = output.text
+        self.marks = output.marks
+        self.last_parts = output.parts
+        self.last_parts_generation = 0
+        self.mark_generation = 0
+        self.html_formatted_text = self.get_html(output.parts)
+
     def get_parts_cached(self):
         if self.last_parts_generation is None or \
                 self.last_parts_generation != self.mark_generation:
@@ -158,8 +212,8 @@ class TextParseState:
 
         return self.last_parts
 
-    def regenerate_html(self):
-        parts = self.get_parts_cached()
+    @staticmethod
+    def get_html(parts):
         html = ""
         for part in parts:
             part_html = part[0]
@@ -168,15 +222,21 @@ class TextParseState:
                 part_html = f"<font color={color}>{part_html}</font>"
             html += part_html
         html = html.replace("\n", "<br>")
+        return html
+
+    def regenerate_html(self):
+        parts = self.get_parts_cached()
+        html = self.get_html(parts)
         self.html_formatted_text = html
 
     def get_structured_output(self):
-        result = [[] for _ in range(LingKind.COUNT.value)]
+        table = [[] for _ in range(LingKind.COUNT.value)]
         parts = self.get_parts_cached()
         for part in parts:
             idx = part[1].value
-            result[idx].append(part[0])
-        return result
+            table[idx].append(part[0])
+        out = StructuredOutput(self.text, parts, table, self.marks)
+        return out
 
     def mark(self, sel_start, sel_end, kind):
         result = False
