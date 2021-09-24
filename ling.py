@@ -193,9 +193,15 @@ class TextParseState:
 
     def init_for_text(self, text):
         if text != self.text:
+            print('here')
             self.text = text
             self.html_formatted_text = text
             self.marks = []
+            self.mark_generation = 0
+            self.last_parts = None
+            self.last_parts_generation = None
+        else:
+            pass
 
     def init_from_output(self, output):
         self.text = output.text

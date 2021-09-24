@@ -31,20 +31,22 @@ class Application(QtWidgets.QMainWindow):
         self.open_from_output_btn.clicked.connect(self._load_output)
 
     def start_edit(self, start, text=None):
+        # NOTE(hl): Does not do parse_state initialization!
         if text is None:
             text = self.text_edit.toPlainText()
+            self.parse_state.init_for_text(text)
         text = reformat_text(text)
 
         if start:
             self.is_edit_enabled = True
             self.text_edit.setReadOnly(True)
-            self.text_edit.setHtml(self.parse_state.html_formatted_text)
             self.parse_state.init_for_text(text)
+            self.text_edit.setHtml(self.parse_state.html_formatted_text)
             self.input_lock_btn.setChecked(True)
         else:
             self.is_edit_enabled = False
             self.text_edit.setReadOnly(False)
-            self.text_edit.setHtml(self.parse_state.html_formatted_text)
+            self.text_edit.setPlainText(text)
             self.input_lock_btn.setChecked(False)
 
     def _do_input_lock(self):
@@ -67,6 +69,7 @@ class Application(QtWidgets.QMainWindow):
         if filename:
             with open(filename) as file:
                 data = file.read()
+                data = reformat_text(data)
                 self.start_edit(True, data)
 
     def _show_result(self):
