@@ -1,22 +1,82 @@
 import enum
 import dataclasses
-from typing import List, DefaultDict, Tuple
-import re
-from collections import defaultdict
+from typing import List, DefaultDict, Tuple, Set
 import csv
 
 
 class LingKind(enum.Enum):
     ADJUNCT = 0x0
-    AGENT = enum.auto()
-    PREDICATE = enum.auto()
-    OBJECT = enum.auto()
-    INSTRUMENT = enum.auto()
+    AGENT = 0x1
+    PREDICATE = 0x2
+    OBJECT = 0x3
+    INSTRUMENT = 0x4
     # Новые типы идут ниже
 
-    # Маркер окончания
-    COUNT = enum.auto()
     NONE = ADJUNCT
+
+
+def text_words_space_separated(text):
+    text_filtered = "".join(map(lambda it: it if it.isalpha() else " ", text))
+    text_filtered = " ".join(text_filtered.split())
+    return text_filtered
+
+@dataclasses.dataclass
+class Collocation:
+    words: Set[int]
+    kind: LingKind
+
+
+@dataclasses.dataclass
+class SentenceContext:
+    """
+    Требования к функционалу:
+    1. Можно помечать словосочетания предложения разными типами
+    2. Слова могут быть разделены другими словами
+    3. Можно устанавливать связи между разными отделенными частями
+    """
+    text: str
+    words: List[str]  # lower case
+    collocations: Set[Collocation]
+
+    @staticmethod
+    def create_empty(text):
+        text_filtered = text_words_space_separated(text)
+        words = text_filtered.lower().split()
+        word_kinds = [LingKind.NONE for _ in words]
+        connections = set()
+        ctx = SentenceContext(
+            text,
+            words,
+            word_kinds,
+            connections
+        )
+        return ctx
+
+    def add_collocation(self, word_idxs: Set[int], kind: LingKind):
+        coll = Collocation(word_idxs, kind)
+        self.collocations.add(coll)
+
+    def mark_words(self, words: List[str], kind: LingKind):
+        word_idxs = set()
+        for word in words:
+            word = word.lower()
+            idx = self.words.index(word)
+            if idx != -1:
+                word_idxs.add(idx)
+        self.add_collocation(words, kind)
+
+    def make_connection(self, word1, word2):
+        word1_idx =
+
+
+
+def test_ctx():
+    text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду"
+    ctx = SentenceContext.create_empty(text)
+    ctx.mark_word("пилотировал", LingKind.PREDICATE)
+    ctx.mark_word("самолет", LingKind.OBJECT)
+
+    ctx.make_connection("пилотировал", "самолет")
 
 
 LING_KIND_STRINGS = [
@@ -26,8 +86,6 @@ LING_KIND_STRINGS = [
     "Объект",
     "Инструмент"
 ]
-
-assert len(LING_KIND_STRINGS) == LingKind.COUNT.value
 
 COLOR_TABLE = [
     "red",
