@@ -17,10 +17,10 @@ class LingKind(enum.Enum):
 
 LING_KIND_STRINGS = [
     "Адъюнкт",
-    "Агент"
-    "Предикат"
-    "Объект"
-    "Инструмент"
+    "Агент",
+    "Предикат",
+    "Объект",
+    "Инструмент",
 ]
 
 COLOR_TABLE = [
@@ -55,12 +55,15 @@ class Collocation:
     def remove_common_words(self, words: List[int]):
         self.words = list(filter(lambda it: it not in words, self.words))
 
+    def does_exists(self):
+        return len(self.words) != 0
+
 
 @dataclasses.dataclass
 class SentenceCtx:
     text: str = ""
     non_word_sentence_parts: List[str] = dataclasses.field(default_factory=list)
-    non_word_sentence_part_starts: List[str] = dataclasses.field(default_factory=list)
+    non_word_sentence_part_starts: List[int] = dataclasses.field(default_factory=list)
     words: List[str] = dataclasses.field(default_factory=list) # lower case
     word_start_idxs: List[int] = dataclasses.field(default_factory=list)
     collocations: List[Collocation] = dataclasses.field(default_factory=list)
@@ -95,6 +98,8 @@ class SentenceCtx:
     def add_collocation(self, word_idxs: List[int], kind: LingKind):
         for collocation in self.collocations:
             collocation.remove_common_words(word_idxs)
+        self.collocations = list(filter(lambda it: it.does_exists(), self.collocations))
+
         idx = self.get_new_collocation_idx()
         coll = Collocation(word_idxs, kind)
         self.collocations[idx] = coll

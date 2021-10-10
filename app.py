@@ -1,96 +1,63 @@
 from PyQt5 import QtWidgets, uic, QtCore
 from ling import *
-from table import LingTable
 
 
-def reformat_text(text):
-    result = " ".join(text.split())
-    return result
-
-
-class Application(QtWidgets.QMainWindow):
-    def __init__(self):
+class SentenceEditWidget(QtWidgets.QMainWindow):
+    def __init__(self, ctx: SentenceCtx):
         super().__init__()
-        uic.loadUi("app.ui", self)
+        self.ctx = ctx
+
+        uic.loadUi("uis/sentence_edit.ui", self)
         self.init_ui()
 
-        self.sentence_edit_ctx = SentenceCtx.create_empty()
-        self.is_edit_enabled = False
+    def generate_table(self):
+        table = self.collocations_tb
+        table.setRowCount(len(self.ctx.collocations))
+        table.setColumnCount(3)
+        for row_idx, collocation in enumerate(self.ctx.collocations):
+            word_it = QtWidgets.QTableWidgetItem(str(collocation.words))
+            kind_it = QtWidgets.QTableWidgetItem(LING_KIND_STRINGS[collocation.kind.value])
+            table.setItem(row_idx, 0, word_it)
+            table.setItem(row_idx, 1, kind_it)
+
+    def generate_view(self):
+        self.generate_table()
+        self.text_view.setHtml(self.ctx.get_funny_html())
 
     def init_ui(self):
-        self.setWindowTitle("Linguistics")
-        # инциализация выбора типа
+        self.mark_btn.clicked.connect(self.do_mark_btn)
         for kind_name in LING_KIND_STRINGS:
-            self.kind_selection.addItem(kind_name)
+            self.mark_kind_cb.addItem(kind_name)
 
-        self.mark_button.clicked.connect(self._do_mark)
-        self.input_lock_btn.stateChanged.connect(self._do_input_lock)
-        self.open_file_btn.clicked.connect(self._load_from_text_file)
-        self.show_result_btn.clicked.connect(self._show_result)
-        self.save_btn.clicked.connect(self._save)
-        self.open_from_output_btn.clicked.connect(self._load_output)
+        self.text_view.setReadOnly(True)
+        self.generate_view()
 
-    def start_edit(self, start, text=None):
-        # NOTE(hl): Does not do parse_state initialization!
-        if text is None:
-            text = self.text_edit.toPlainText()
-            self.parse_state.init_for_text(text)
-        text = reformat_text(text)
+    def do_mark_btn(self):
+        qt_cursor = self.text_view.textCursor()
+        selection_start = qt_cursor.selectionStart()
+        selection_end = qt_cursor.selectionEnd()
+        kind_idx = self.mark_kind_cb.currentIndex()
+        kind = LingKind(kind_idx)
+        self.ctx.mark_text_part(selection_start, selection_end, kind)
+        self.generate_view()
 
-        if start:
-            self.is_edit_enabled = True
-            self.text_edit.setReadOnly(True)
-            self.sentence_edit_ctx = SentenceCtx.create_from_text(text)
-            self.text_edit.setHtml(self.parse_state.html_formatted_text)
-            self.input_lock_btn.setChecked(True)
-        else:
-            self.is_edit_enabled = False
-            self.text_edit.setReadOnly(False)
-            self.text_edit.setPlainText(text)
-            self.input_lock_btn.setChecked(False)
 
-    def _do_input_lock(self):
-        is_checked = self.sender().isChecked()
-        self.start_edit(is_checked)
+def test_sentence_edit():
+    import sys
 
-    def _do_mark(self):
-        if not self.is_edit_enabled:
-            self.start_edit(True)
+    text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
+    text_ctx = TextCtx()
+    text_ctx.init_for_text(text)
 
-        cursor = self.text_edit.textCursor()
-        sel_start = cursor.selectionStart()
-        sel_end = cursor.selectionEnd()
-        current_mode = LingKind(self.kind_selection.currentIndex())
-        if self.parse_state.mark(sel_start, sel_end, current_mode):
-            self.text_edit.setHtml(self.parse_state.html_formatted_text)
+    sentence1 = text_ctx.start_sentence_edit(10)
+    sentence1.add_collocation([0, 1, 2], LingKind.OBJECT)
+    sentence1.mark_text_part(20, 40, LingKind.PREDICATE)
 
-    def _load_from_text_file(self):
-        filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open file")[0]
-        if filename:
-            with open(filename) as file:
-                data = file.read()
-                data = reformat_text(data)
-                self.start_edit(True, data)
+    app = QtWidgets.QApplication(sys.argv)
+    exec = SentenceEditWidget(sentence1)
+    exec.show()
+    sys.exit(app.exec_())
 
-    def _show_result(self):
-        output = self.parse_state.get_structured_output()
-        window = QtWidgets.QMainWindow(self)
-        table = LingTable(output.table)
-        window.setCentralWidget(table)
-        window.resize(table.size())
-        window.show()
 
-    def _save(self):
-        filename = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", filter="*.csv")[0]
-        if filename:
-            with open(filename, "w") as file:
-                struct = self.parse_state.get_structured_output()
-                struct.to_csv(file)
-
-    # def _load_output(self):
-    #     filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", filter="*.csv")[0]
-    #     if filename:
-    #         with open(filename) as file:
-    #             struct = StructuredOutput.from_csv(file)
-    #             self.parse_state.init_from_output(struct)
-    #             self.text_edit.setHtml(self.parse_state.html_formatted_text)
+if __name__ == "__main__":
+    test_sentence_edit()
