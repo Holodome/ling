@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>600</width>
-    <height>400</height>
+    <height>542</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -67,7 +67,7 @@
     <rect>
      <x>210</x>
      <y>360</y>
-     <width>101</width>
+     <width>111</width>
      <height>26</height>
     </rect>
    </property>
@@ -93,12 +93,61 @@
     <rect>
      <x>210</x>
      <y>320</y>
-     <width>101</width>
+     <width>111</width>
      <height>26</height>
     </rect>
    </property>
    <property name="text">
     <string>Удалить</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="change_kind_btn">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>280</y>
+     <width>111</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Изменить тип</string>
+   </property>
+  </widget>
+  <widget class="QListWidget" name="connections_list">
+   <property name="geometry">
+    <rect>
+     <x>330</x>
+     <y>410</y>
+     <width>251</width>
+     <height>111</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="delete_con_btn">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>490</y>
+     <width>111</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Удалить</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="make_con_btn">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>240</y>
+     <width>111</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Сделать связь</string>
    </property>
   </widget>
  </widget>

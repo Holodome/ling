@@ -152,7 +152,11 @@ class SentenceCtx:
 
     def make_connection(self, col1_id, col2_id):
         connection = (col1_id, col2_id)
-        self.connections.append(connection)
+        # @TODO(hl): Using set for storing connections would be ideal in this situation,
+        #   but don't want to make premature optimizations.
+        #   Because later connections would have to maintain some lexical analysis
+        if connection not in self.connections:
+            self.connections.append(connection)
 
     def get_funny_html(self):
         html = ""
@@ -167,15 +171,8 @@ class SentenceCtx:
         return html
 
     def get_funny_html_detailed(self):
+        # @TODO(hl): Not implemented
         html = ""
-        for i, (non_word, word) in enumerate(zip(self.non_word_sentence_parts, self.words)):
-            word_kind = self.get_word_kind(i)
-            if word_kind != LingKind.ADJUNCT:
-                color = get_color_for_int(word_kind.value)
-                word = f"<font color={color}>{word}</font>"
-
-            html += non_word
-            html += word
         return html
 
     def remove_collocations(self, collocation_idxs: List[int]):
@@ -194,6 +191,16 @@ class SentenceCtx:
             for col in collocations_to_join:
                 new_words.extend(col.words)
             self.add_collocation(new_words, new_kind)
+
+    def change_kind(self, collocation_idx: int, kind: LingKind):
+        self.collocations[collocation_idx].kind = kind
+
+    def delete_connections(self, connections: List[int]):
+        new_connections = []
+        for i, connection in enumerate(self.connections):
+            if i not in connections:
+                new_connections.append(connection)
+        self.connections = new_connections
 
 
 @dataclasses.dataclass
