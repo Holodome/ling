@@ -1,6 +1,6 @@
 import enum
 import dataclasses
-from typing import List, DefaultDict, Tuple, Set
+from typing import List, DefaultDict, Tuple, Set, Dict
 import csv
 
 
@@ -15,75 +15,11 @@ class LingKind(enum.Enum):
     NONE = ADJUNCT
 
 
-def text_words_space_separated(text):
-    text_filtered = "".join(map(lambda it: it if it.isalpha() else " ", text))
-    text_filtered = " ".join(text_filtered.split())
-    return text_filtered
-
-@dataclasses.dataclass
-class Collocation:
-    words: Set[int]
-    kind: LingKind
-
-
-@dataclasses.dataclass
-class SentenceContext:
-    """
-    Требования к функционалу:
-    1. Можно помечать словосочетания предложения разными типами
-    2. Слова могут быть разделены другими словами
-    3. Можно устанавливать связи между разными отделенными частями
-    """
-    text: str
-    words: List[str]  # lower case
-    collocations: Set[Collocation]
-
-    @staticmethod
-    def create_empty(text):
-        text_filtered = text_words_space_separated(text)
-        words = text_filtered.lower().split()
-        word_kinds = [LingKind.NONE for _ in words]
-        connections = set()
-        ctx = SentenceContext(
-            text,
-            words,
-            word_kinds,
-            connections
-        )
-        return ctx
-
-    def add_collocation(self, word_idxs: Set[int], kind: LingKind):
-        coll = Collocation(word_idxs, kind)
-        self.collocations.add(coll)
-
-    def mark_words(self, words: List[str], kind: LingKind):
-        word_idxs = set()
-        for word in words:
-            word = word.lower()
-            idx = self.words.index(word)
-            if idx != -1:
-                word_idxs.add(idx)
-        self.add_collocation(words, kind)
-
-    def make_connection(self, word1, word2):
-        word1_idx =
-
-
-
-def test_ctx():
-    text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду"
-    ctx = SentenceContext.create_empty(text)
-    ctx.mark_word("пилотировал", LingKind.PREDICATE)
-    ctx.mark_word("самолет", LingKind.OBJECT)
-
-    ctx.make_connection("пилотировал", "самолет")
-
-
 LING_KIND_STRINGS = [
     "Адъюнкт",
-    "Агент",
-    "Предикат",
-    "Объект",
+    "Агент"
+    "Предикат"
+    "Объект"
     "Инструмент"
 ]
 
@@ -97,220 +33,186 @@ COLOR_TABLE = [
 ]
 
 
-def get_parts_from_marks(text, marks):
-    parts = [(text, LingKind.ADJUNCT)]
-    # Algorithm pass
-    for mark in marks:
-        start, end, kind = mark
-        assert end > start
-        # find element that contains current mark
-        # split that element into two groups
-        # if end is not met, keep splitting or changing next elements
-        parts_overlapped = []
-        cursor = 0
-        for i, part in enumerate(parts):
-            if end > cursor and cursor + len(part[0]) >= start:
-                parts_overlapped.append((i, cursor))
-            cursor += len(part[0])
-
-        new_parts = parts.copy()
-        idx_advance = 0
-        for i, (part_idx, part_start) in enumerate(parts_overlapped):
-            part_idx += idx_advance
-            part = new_parts[part_idx]
-            part_text = part[0]
-            local_idx_advance = 0
-            if i == 0 == len(parts_overlapped) - 1:
-                idx1 = start - part_start
-                idx2 = end - part_start
-                text0 = part_text[:idx1]
-                text1 = part_text[idx1:idx2]
-                text2 = part_text[idx2:]
-                if text0:
-                    new_parts.insert(part_idx + local_idx_advance, (text0, part[1]))
-                    local_idx_advance += 1
-                if text1:
-                    new_parts.insert(part_idx + local_idx_advance, (text1, kind))
-                    local_idx_advance += 1
-                if text2:
-                    new_parts.insert(part_idx + local_idx_advance, (text2, part[1]))
-                    local_idx_advance += 1
-                del new_parts[part_idx + local_idx_advance]
-                local_idx_advance -= 1
-            elif i == 0:
-                idx_to_split = start - part_start
-                text0 = part_text[:idx_to_split]
-                text1 = part_text[idx_to_split:]
-                if text0:
-                    new_parts.insert(part_idx + local_idx_advance, (text0, part[1]))
-                    local_idx_advance += 1
-                if text1:
-                    new_parts.insert(part_idx + local_idx_advance, (text1, kind))
-                    local_idx_advance += 1
-                del new_parts[part_idx + local_idx_advance]
-                local_idx_advance -= 1
-            # if it is the last
-            elif i == len(parts_overlapped) - 1:
-                idx_to_split = end - part_start
-                text0 = part_text[:idx_to_split]
-                text1 = part_text[idx_to_split:]
-                if text0:
-                    new_parts.insert(part_idx + local_idx_advance, (text0, kind))
-                    local_idx_advance += 1
-                if text1:
-                    new_parts.insert(part_idx + local_idx_advance, (text1, part[1]))
-                    local_idx_advance += 1
-                del new_parts[part_idx + local_idx_advance]
-                local_idx_advance -= 1
-            elif 0 < i < len(parts_overlapped) - 1:
-                new_parts[part_idx] = (part_text, kind)
-            else:
-                assert False
-            idx_advance += local_idx_advance
-        parts = new_parts
-
-    # Optimization pass
-    new_parts = []
-    last_editable = None
-    for i in range(len(parts)):
-        if last_editable is None:
-            last_editable = parts[i]
-        elif last_editable[1] == parts[i][1]:
-            last_editable = (last_editable[0] + parts[i][0], last_editable[1])
-        else:
-            new_parts.append(last_editable)
-            last_editable = parts[i]
-    if last_editable is not None:
-        new_parts.append(last_editable)
-    parts = new_parts
-    return parts
+def get_color_for_int(v):
+    return COLOR_TABLE[v % len(COLOR_TABLE)]
 
 
-def test():
-    text = "abcdefgh"
-    marks = [
-        (1, 5, LingKind.AGENT),
-        (5, 7, LingKind.ADJUNCT),
-        (3, 6, LingKind.PREDICATE),
-        (2, 6, LingKind.NONE)
-    ]
-    parts = get_parts_from_marks(text, marks)
-    exit(0)
+def text_words_space_separated(text):
+    text_filtered = "".join(map(lambda it: it if it.isalpha() else " ", text))
+    text_filtered = " ".join(text_filtered.split())
+    return text_filtered
+
+
+def lines_intersect(a1, a2, b1, b2):
+    return a2 >= b1 and b2 >= a1
 
 
 @dataclasses.dataclass
-class StructuredOutput:
-    text: str
-    parts: List[Tuple[str, LingKind]]
-    table: List[List[str]]
-    marks: List[Tuple[int, int, LingKind]]
+class Collocation:
+    words: List[int]
+    kind: LingKind
 
-    def to_csv(self, file):
-        writer = csv.writer(file)
-        writer.writerow([self.text])
-        row1 = list(map(lambda it: it[0], self.parts))
-        row2 = list(map(lambda it: it[1].value, self.parts))
-        writer.writerow(row1)
-        writer.writerow(row2)
-        row3 = list(map(lambda it: it[0], self.marks))
-        row4 = list(map(lambda it: it[1], self.marks))
-        row5 = list(map(lambda it: it[2].value, self.marks))
-        writer.writerow(row3)
-        writer.writerow(row4)
-        writer.writerow(row5)
-        for it in self.table:
-            writer.writerow(it)
-
-    @staticmethod
-    def from_csv(file):
-        reader = csv.reader(file)
-        row0 = next(reader)
-        text = row0[0]
-        row1 = next(reader)
-        row2 = next(reader)
-        parts = [(row1[i], LingKind(int(row2[i]))) for i in range(len(row1))]
-        row3 = next(reader)
-        row4 = next(reader)
-        row5 = next(reader)
-        marks = [(int(row3[i]), int(row4[i]), LingKind(int(row5[i]))) for i in range(len(row3))]
-        table = []
-        for row in reader:
-            table.append(row)
-        return StructuredOutput(text, parts, table, marks)
+    def remove_common_words(self, words: List[int]):
+        self.words = list(filter(lambda it: it not in words, self.words))
 
 
-class TextParseState:
-    def __init__(self, text=""):
+@dataclasses.dataclass
+class SentenceCtx:
+    text: str = ""
+    non_word_sentence_parts: List[str] = dataclasses.field(default_factory=list)
+    non_word_sentence_part_starts: List[str] = dataclasses.field(default_factory=list)
+    words: List[str] = dataclasses.field(default_factory=list) # lower case
+    word_start_idxs: List[int] = dataclasses.field(default_factory=list)
+    collocations: List[Collocation] = dataclasses.field(default_factory=list)
+    collocation_id_freelist: [int] = dataclasses.field(default_factory=list)
+    connections: List[Tuple[int, int]] = dataclasses.field(default_factory=list)
+
+    def init_from_text(self, text):
+        non_word_sentence_parts = []
+        non_word_sentence_part_starts = []
+        words = []
+        words_start_idxs = []
+        cursor = 0
+        while cursor < len(text):
+            non_word_start = cursor
+            while cursor < len(text) and not text[cursor].isalpha():
+                cursor += 1
+            non_word_sentence_parts.append(text[non_word_start:cursor])
+            non_word_sentence_part_starts.append(non_word_start)
+            word_start = cursor
+            while cursor < len(text) and text[cursor].isalpha():
+                cursor += 1
+            words.append(text[word_start:cursor])
+            words_start_idxs.append(word_start)
+
+        self.__init__()
         self.text = text
-        self.marks = []
+        self.words = words
+        self.word_start_idxs = words_start_idxs
+        self.non_word_sentence_parts = non_word_sentence_parts
+        self.non_word_sentence_part_starts = non_word_sentence_part_starts
 
-        self.html_formatted_text = text
-        self.mark_generation = 0
-        self.last_parts = None
-        self.last_parts_generation = None
+    def add_collocation(self, word_idxs: List[int], kind: LingKind):
+        for collocation in self.collocations:
+            collocation.remove_common_words(word_idxs)
+        idx = self.get_new_collocation_idx()
+        coll = Collocation(word_idxs, kind)
+        self.collocations[idx] = coll
+        return idx
 
-    def init_for_text(self, text):
-        if text != self.text:
-            print('here')
-            self.text = text
-            self.html_formatted_text = text
-            self.marks = []
-            self.mark_generation = 0
-            self.last_parts = None
-            self.last_parts_generation = None
+    def get_new_collocation_idx(self) -> int:
+        if self.collocation_id_freelist:
+            result = self.collocation_id_freelist.pop()
         else:
-            pass
+            result = len(self.collocations)
+            self.collocations.append(None)
+        return result
 
-    def init_from_output(self, output):
-        self.text = output.text
-        self.marks = output.marks
-        self.last_parts = output.parts
-        self.last_parts_generation = 0
-        self.mark_generation = 0
-        self.html_formatted_text = self.get_html(output.parts)
+    def mark_words(self, words: List[int], kind: LingKind) -> int:
+        return self.add_collocation(words, kind)
 
-    def get_parts_cached(self):
-        if self.last_parts_generation is None or \
-                self.last_parts_generation != self.mark_generation:
-            self.last_parts = get_parts_from_marks(self.text, self.marks)
+    def mark_text_part(self, start_idx: int, end_idx: int, kind: LingKind):
+        word_idxs = []
+        for word_idx in range(len(self.word_start_idxs)):
+            word_text = self.words[word_idx]
+            word_start = self.word_start_idxs[word_idx]
+            if lines_intersect(start_idx, end_idx, word_start, word_start + len(word_text)):
+                word_idxs.append(word_idx)
+        self.mark_words(word_idxs, kind)
 
-        return self.last_parts
+    def get_corresponding_collocation_id(self, word_idx: int) -> int:
+        result = -1
+        for i, collocation in enumerate(self.collocations):
+            if word_idx in collocation.words:
+                result = i
+        return result
 
-    @staticmethod
-    def get_html(parts):
+    def make_connection(self, col1_id, col2_id):
+        connection = (col1_id, col2_id)
+        self.connections.append(connection)
+
+    def get_word_kind(self, word_idx: int):
+        kind = LingKind.ADJUNCT
+        for collocation in self.collocations:
+            if word_idx in collocation.words:
+                kind = collocation.kind
+        return kind
+
+    def get_funny_html(self):
         html = ""
-        for part in parts:
-            part_html = part[0]
-            if part[1] != LingKind.NONE:
-                color = COLOR_TABLE[part[1].value - 1]
-                part_html = f"<font color={color}>{part_html}</font>"
-            html += part_html
-        html = html.replace("\n", "<br>")
+        for i, (non_word, word) in enumerate(zip(self.non_word_sentence_parts, self.words)):
+            word_kind = self.get_word_kind(i)
+            if word_kind != LingKind.ADJUNCT:
+                color = get_color_for_int(word_kind.value)
+                word = f"<font color={color}>{word}</font>"
+
+            html += non_word
+            html += word
         return html
 
-    def regenerate_html(self):
-        parts = self.get_parts_cached()
-        html = self.get_html(parts)
-        self.html_formatted_text = html
 
-    def get_structured_output(self):
-        table = [[] for _ in range(LingKind.COUNT.value)]
-        parts = self.get_parts_cached()
-        for part in parts:
-            idx = part[1].value
-            table[idx].append(part[0])
-        out = StructuredOutput(self.text, parts, table, self.marks)
-        return out
+@dataclasses.dataclass
+class TextCtx:
+    text = ""
+    sentences: List[str] = dataclasses.field(default_factory=list)  # text inside is stripped
+    sentence_start_idxs: List[int] = dataclasses.field(default_factory=list)
+    sentence_ctxs: List[SentenceCtx] = dataclasses.field(default_factory=list)
 
-    def mark(self, sel_start, sel_end, kind):
-        result = False
-        # assert 0 <= sel_start <= len(self.text) and \
-        #     0 <= sel_end <= len(self.text)
-        # @TODO validate
-        if sel_start != sel_end:
-            self.mark_generation += 1
-            mark = (sel_start, sel_end, kind)
-            self.marks.append(mark)
-            self.regenerate_html()
-            result = True
-        return result
+    def init_for_text(self, text):
+        sentences = []
+        sentence_start_idxs = []
+        sentence_start = 0
+        for cursor, symb in enumerate(text):
+            if symb == ".":
+                sentences.append(text[sentence_start:cursor])
+                sentence_start_idxs.append(sentence_start)
+                sentence_start = cursor + 1
+        sentence_ctxs = [SentenceCtx() for _ in sentences]
+        for sentence, ctx in zip(sentences, sentence_ctxs):
+            ctx.init_from_text(sentence)
+
+        self.__init__()
+        self.text = text
+        self.sentences = sentences
+        self.sentence_start_idxs = sentence_start_idxs
+        self.sentence_ctxs = sentence_ctxs
+        
+    def get_sentence_idx_from_cursor(self, cursor: int) -> int:
+        if cursor >= self.sentence_start_idxs[-1]:
+            edit_idx = len(self.sentence_start_idxs) - 1
+        else:
+            edit_idx = -1
+            for sentence_idx in range(len(self.sentences) - 1):
+                start = self.sentence_start_idxs[sentence_idx]
+                next_start = self.sentence_start_idxs[sentence_idx + 1]
+                if start <= cursor < next_start:
+                    edit_idx = sentence_idx
+                    break
+            assert edit_idx != -1
+        return edit_idx
+
+    def start_sentence_edit(self, index: int):
+        edit_idx = self.get_sentence_idx_from_cursor(index)
+        
+        assert edit_idx != -1  # TODO(hl): Investiate why it may fail
+        if edit_idx != -1:
+            sentence_ctx = self.sentence_ctxs[edit_idx]
+            return sentence_ctx
+        return None
+
+
+def test_ctx():
+    text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
+    text_ctx = TextCtx()
+    text_ctx.init_for_text(text)
+
+    sentence1 = text_ctx.start_sentence_edit(10)
+    sentence1.add_collocation([0, 1, 2], LingKind.OBJECT)
+    sentence1.mark_text_part(20, 40, LingKind.PREDICATE)
+    html = sentence1.get_funny_html()
+    print(html)
+    pass
+
+
+if __name__ == "__main__":
+    test_ctx()

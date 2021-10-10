@@ -14,7 +14,7 @@ class Application(QtWidgets.QMainWindow):
         uic.loadUi("app.ui", self)
         self.init_ui()
 
-        self.parse_state = TextParseState()
+        self.sentence_edit_ctx = SentenceCtx.create_empty()
         self.is_edit_enabled = False
 
     def init_ui(self):
@@ -40,7 +40,7 @@ class Application(QtWidgets.QMainWindow):
         if start:
             self.is_edit_enabled = True
             self.text_edit.setReadOnly(True)
-            self.parse_state.init_for_text(text)
+            self.sentence_edit_ctx = SentenceCtx.create_from_text(text)
             self.text_edit.setHtml(self.parse_state.html_formatted_text)
             self.input_lock_btn.setChecked(True)
         else:
@@ -87,10 +87,10 @@ class Application(QtWidgets.QMainWindow):
                 struct = self.parse_state.get_structured_output()
                 struct.to_csv(file)
 
-    def _load_output(self):
-        filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", filter="*.csv")[0]
-        if filename:
-            with open(filename) as file:
-                struct = StructuredOutput.from_csv(file)
-                self.parse_state.init_from_output(struct)
-                self.text_edit.setHtml(self.parse_state.html_formatted_text)
+    # def _load_output(self):
+    #     filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", filter="*.csv")[0]
+    #     if filename:
+    #         with open(filename) as file:
+    #             struct = StructuredOutput.from_csv(file)
+    #             self.parse_state.init_from_output(struct)
+    #             self.text_edit.setHtml(self.parse_state.html_formatted_text)
