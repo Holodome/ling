@@ -64,7 +64,7 @@ class SentenceCtx:
     text: str = ""
     non_word_sentence_parts: List[str] = dataclasses.field(default_factory=list)
     non_word_sentence_part_starts: List[int] = dataclasses.field(default_factory=list)
-    words: List[str] = dataclasses.field(default_factory=list) # lower case
+    words: List[str] = dataclasses.field(default_factory=list)
     word_start_idxs: List[int] = dataclasses.field(default_factory=list)
     collocations: List[Collocation] = dataclasses.field(default_factory=list)
     collocation_id_freelist: [int] = dataclasses.field(default_factory=list)
@@ -114,15 +114,33 @@ class SentenceCtx:
         return result
 
     def mark_words(self, words: List[int], kind: LingKind) -> int:
-        return self.add_collocation(words, kind)
+        if words:
+            return self.add_collocation(words, kind)
+        return -1
 
-    def mark_text_part(self, start_idx: int, end_idx: int, kind: LingKind):
+    def get_word_idxs_from_section(self, start_idx, end_idx) -> list:
         word_idxs = []
         for word_idx in range(len(self.word_start_idxs)):
             word_text = self.words[word_idx]
             word_start = self.word_start_idxs[word_idx]
             if lines_intersect(start_idx, end_idx, word_start, word_start + len(word_text)):
                 word_idxs.append(word_idx)
+        return word_idxs
+
+    def mark_text_part(self, start_idx: int, end_idx: int, kind: LingKind):
+        word_idxs = self.get_word_idxs_from_section(start_idx, end_idx)
+        self.mark_words(word_idxs, kind)
+
+    def get_word_kind(self, word_idx: int):
+        kind = LingKind.ADJUNCT
+        for collocation in self.collocations:
+            if word_idx in collocation.words:
+                kind = collocation.kind
+        return kind
+
+    def mark_text_part_soft(self, start_idx: int, end_idx: int, kind: LingKind):
+        word_idxs = self.get_word_idxs_from_section(start_idx, end_idx)
+        word_idxs = list(filter(lambda it: self.get_word_kind(it) == LingKind.ADJUNCT, word_idxs))
         self.mark_words(word_idxs, kind)
 
     def get_corresponding_collocation_id(self, word_idx: int) -> int:
@@ -136,13 +154,6 @@ class SentenceCtx:
         connection = (col1_id, col2_id)
         self.connections.append(connection)
 
-    def get_word_kind(self, word_idx: int):
-        kind = LingKind.ADJUNCT
-        for collocation in self.collocations:
-            if word_idx in collocation.words:
-                kind = collocation.kind
-        return kind
-
     def get_funny_html(self):
         html = ""
         for i, (non_word, word) in enumerate(zip(self.non_word_sentence_parts, self.words)):
@@ -154,6 +165,35 @@ class SentenceCtx:
             html += non_word
             html += word
         return html
+
+    def get_funny_html_detailed(self):
+        html = ""
+        for i, (non_word, word) in enumerate(zip(self.non_word_sentence_parts, self.words)):
+            word_kind = self.get_word_kind(i)
+            if word_kind != LingKind.ADJUNCT:
+                color = get_color_for_int(word_kind.value)
+                word = f"<font color={color}>{word}</font>"
+
+            html += non_word
+            html += word
+        return html
+
+    def remove_collocations(self, collocation_idxs: List[int]):
+        new_collocations = []
+        for collocation_idx, collocation in enumerate(self.collocations):
+            if collocation_idx not in collocation_idxs:
+                new_collocations.append(collocation)
+        self.collocations = new_collocations
+
+    def join_collocations(self, collocation_idxs: List[int]):
+        if len(collocation_idxs) > 1:
+            collocations_to_join = list(map(lambda it: self.collocations[it], collocation_idxs))
+            # @HACK(hl): Probably want to warn when kinds are different
+            new_kind = collocations_to_join[0].kind
+            new_words = []
+            for col in collocations_to_join:
+                new_words.extend(col.words)
+            self.add_collocation(new_words, new_kind)
 
 
 @dataclasses.dataclass

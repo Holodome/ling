@@ -39,7 +39,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Mark</string>
+    <string>Отметка</string>
    </property>
   </widget>
   <widget class="QComboBox" name="mark_kind_cb">
@@ -60,6 +60,45 @@
      <width>256</width>
      <height>192</height>
     </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="join_col_btn">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>360</y>
+     <width>101</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Соединить</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="mark_soft_btn">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>240</y>
+     <width>141</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Отметка (мягкая)</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="delete_col_btn">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>320</y>
+     <width>101</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Удалить</string>
    </property>
   </widget>
  </widget>
