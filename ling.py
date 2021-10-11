@@ -246,7 +246,7 @@ class TextCtx:
     def start_sentence_edit(self, index: int):
         edit_idx = self.get_sentence_idx_from_cursor(index)
         
-        assert edit_idx != -1  # TODO(hl): Investiate why it may fail
+        assert edit_idx != -1  # TODO(hl): Investigate why it may fail
         if edit_idx != -1:
             sentence_ctx = self.sentence_ctxs[edit_idx]
             return sentence_ctx
