@@ -1,6 +1,6 @@
 import enum
 import dataclasses
-from typing import List, DefaultDict, Tuple, Set, Dict
+from typing import List, DefaultDict, Tuple, Set, Dict, NewType
 import csv
 
 
@@ -230,6 +230,9 @@ class TextCtx:
         self.sentence_ctxs = sentence_ctxs
         
     def get_sentence_idx_from_cursor(self, cursor: int) -> int:
+        if not self.sentences:
+            return -1
+
         if cursor >= self.sentence_start_idxs[-1]:
             edit_idx = len(self.sentence_start_idxs) - 1
         else:
@@ -245,12 +248,28 @@ class TextCtx:
 
     def start_sentence_edit(self, index: int):
         edit_idx = self.get_sentence_idx_from_cursor(index)
-        
-        assert edit_idx != -1  # TODO(hl): Investigate why it may fail
         if edit_idx != -1:
             sentence_ctx = self.sentence_ctxs[edit_idx]
             return sentence_ctx
         return None
+
+
+WordID = NewType("WordID", int)
+
+
+@dataclasses.dataclass
+class GlobalLingContext:
+    words: Dict[WordID, str] = dataclasses.field(default_factory=dict)
+    collocations: List[Tuple[List[WordID], LingKind]] = dataclasses.field(default_factory=list)
+
+    def add_word(self, word: str) -> WordID:
+        str_hash = hash(word)
+        word_id = WordID(str_hash)
+        self.words[word_id] = word
+        return word_id
+
+    def record_sentence_ctx_changes(self, ctx: SentenceCtx):
+        pass
 
 
 def test_ctx():

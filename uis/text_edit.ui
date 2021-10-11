@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>300</height>
+    <height>343</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -34,6 +34,19 @@
    </property>
    <property name="text">
     <string>Выбрать предложение</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="open_file_btn">
+   <property name="geometry">
+    <rect>
+     <x>270</x>
+     <y>190</y>
+     <width>121</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Открыть файл</string>
    </property>
   </widget>
  </widget>
