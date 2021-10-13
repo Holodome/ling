@@ -1,7 +1,10 @@
+import os
 import sqlite3
+import traceback
+from typing import Union
+
 from ling import *
 import dataclasses
-import operator
 
 
 @dataclasses.dataclass
@@ -25,25 +28,24 @@ class DBCtx:
         derivative_forms = list(map(DerivativeForm.create, words))
 
         initial_forms = list(map(lambda it: (it.initial_form, ), derivative_forms))
-        sql = """INSERT OR IGNORE INTO Initial_Form (form) VALUES(?)"""
+        sql = """INSERT OR IGNORE INTO Initial_Form (form) VALUES (?)"""
         self.cursor.executemany(sql, initial_forms)
+        #
+        # sql = """SELECT id FROM Initial_Form WHERE form IN (%s)""" % ", ".join("?" * len(words))
+        # initial_form_ids = self.cursor.execute(sql, list(map(lambda it: it[0], initial_forms)))
+        # initial_form_ids = [it[0] for it in initial_form_ids]
 
-        sql = """SELECT id FROM Initial_Form WHERE form IN (%s)""" % ", ".join("?" * len(words))
-        initial_form_ids = self.cursor.execute(sql, list(map(lambda it: it[0], initial_forms)))
-        initial_form_ids = [it[0] for it in initial_form_ids]
-
-        sql = """INSERT OR IGNORE INTO Derivative_Form (form, initial_form_id, part_of_speech) VALUES (?, ?, ?)"""
         words_reformatted = []
-        for derivative_form, initial_form_id in zip(derivative_forms, initial_form_ids):
+        for derivative_form in derivative_forms:
+            sql = """SELECT id FROM Initial_Form WHERE form = (?)"""
+            initial_form_id_it = self.cursor.execute(sql, (derivative_form.initial_form, ))
+            initial_form_id = next(initial_form_id_it)[0]
             form_sql_data = (derivative_form.form, initial_form_id, derivative_form.part_of_speech.value)
             words_reformatted.append(form_sql_data)
+
+        sql = """INSERT OR IGNORE INTO Derivative_Form (form, initial_form_id, part_of_speech) VALUES (?, ?, ?)"""
         self.cursor.executemany(sql, words_reformatted)
         self.database.commit()
-
-        # sql = "SELECT form FROM Derivative_Form WHERE form IN (%s)" % ", ".join("?" * len(words))
-        sql = "SELECT form FROM Derivative_Form"
-        # query = self.cursor.execute(sql, words)
-        query = self.cursor.execute(sql)
 
     def add_or_update_sentence_record(self, sent: SentenceCtx):
         self.add_words_if_not_exist(sent.words)
@@ -84,7 +86,7 @@ class DBCtx:
         # now start populating database again
         #
         collocation_ids = []
-        for collocation in sent.collocations:
+        for idx, collocation in enumerate(sent.collocations):
             sql = """INSERT INTO Collocation (kind) VALUES (?)"""
             self.cursor.execute(sql, (collocation.kind.value, ))
             sql = """SELECT id FROM Collocation
@@ -93,12 +95,12 @@ class DBCtx:
             collocation_id = next(collocation_id)[0]
             collocation_ids.append(collocation_id)
 
-            sql = """INSERT INTO Collocation_Junction (derivative_form_id, collocation_id)
-                     SELECT Derivative_Form.id, ? 
+            sql = """INSERT INTO Collocation_Junction (derivative_form_id, collocation_id, idx)
+                     SELECT Derivative_Form.id, (?), (?)
                      FROM Derivative_Form
                      WHERE Derivative_Form.form = (?)
                      """
-            words = list(map(lambda it: (collocation_id, sent.words[it],), collocation.words))
+            words = list(map(lambda it: (collocation_id, sent.words[it[1]], it[0]), enumerate(collocation.words)))
             self.cursor.executemany(sql, words)
 
             sql = """INSERT INTO Sentence_Collocation_Junction (sentence_id, collocation_id)
@@ -121,22 +123,47 @@ class DBCtx:
 
         self.database.commit()
 
-    def get_all_word_forms(self, word):
+    def get_deriv_form(self, word: Union[str, None] = None):
+        sql = """SELECT form, initial_form_id, part_of_speech FROM Derivative_Form"""
+        if word is not None:
+            sql += " WHERE form = (?)"
+            deriv = self.cursor.execute(sql, (word, ))
+        else:
+            deriv = self.cursor.execute(sql)
+
+        deriv_forms = []
+        parts_of_speech = []
+        init_ids = []
+        for d in deriv:
+            deriv_forms.append(d[0])
+            init_ids.append(d[1])
+            parts_of_speech.append(d[2])
+
+        derivs = []
+        for deriv_form, part_of_speech in zip(deriv_forms, parts_of_speech):
+            init_form = self.get_initial_form(deriv_form)
+            d = DerivativeForm.from_deserialized(deriv_form, init_form[0], part_of_speech)
+            derivs.append(d)
+        return derivs
+
+    def get_initial_form(self, word: Union[str, None] = None):
+        sql = """SELECT initial_form_id FROM Derivative_Form"""
+        if word is not None:
+            sql += " WHERE form = (?)"
+            init_id = self.cursor.execute(sql, (word, ))
+        else:
+            init_id = self.cursor.execute(sql)
+        init_id = list(map(lambda it: it[0], init_id))
+        sql = """SELECT form FROM Initial_Form WHERE id IN (%s)""" % ", ".join("?" * len(init_id))
+        form_it = self.cursor.execute(sql, init_id)
+        form = list(map(lambda it: it[0], form_it))
+
+        return form
+
+    def get_all_collocations(self, word: Union[str, None] = None):
         ...
 
-    def get_initial_form(self, word):
-        ...
-
-    def get_all_collocations_with_word(self, word: str):
-        ...
-
-    def get_all_connections_with_word(self, word: str):
-        ...
-
-    def get_all_words_collocated_with(self, word):
-        ...
-
-    def get_all_words_connected_with(self, word):
+    def get_all_connections(self, word: Union[str, None] = None):
         ...
 
 
@@ -150,11 +177,34 @@ def test_db_ctx():
     sentence1.mark_text_part(20, 40, LingKind.PREDICATE)
     sentence1.make_connection(0, 1)
 
-    ctx = DBCtx()
-    ctx.create_or_open("db.sqlite")
-    ctx.add_or_update_sentence_record(sentence1)
+    db_name = "test.sqlite"
 
-    ctx.database.close()
+    try:
+        ctx = DBCtx()
+        ctx.create_or_open(db_name)
+        ctx.add_or_update_sentence_record(sentence1)
+
+        word = "ручкой"
+        print("--Init of ", word)
+        a = ctx.get_initial_form(word)
+        print('\n'.join(map(str, a)))
+
+        print("--All inits")
+        a = ctx.get_initial_form()
+        print('\n'.join(map(str, a)))
+
+        print("--Deriv of", word)
+        a = ctx.get_deriv_form(word)
+        print('\n'.join(map(str, a)))
+
+        print("--All derivs")
+        a = ctx.get_deriv_form()
+        print('\n'.join(map(str, a)))
+
+        ctx.database.close()
+    except Exception:
+        traceback.print_exc()
+    os.remove(db_name)
 
 
 if __name__ == "__main__":

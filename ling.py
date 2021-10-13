@@ -339,6 +339,12 @@ class DerivativeForm:
             return derivative_form
         return None
 
+    @staticmethod
+    def from_deserialized(form: str, init: str, part_of_speech: int):
+        part_of_speech = PartOfSpeech(part_of_speech)
+        deriv = DerivativeForm(form, init, part_of_speech)
+        return deriv
+
 
 def test_derivative_form():
     form = DerivativeForm.create("Летчик")

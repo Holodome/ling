@@ -18,9 +18,11 @@ CREATE TABLE IF NOT EXISTS Collocation (
 );
 
 CREATE TABLE IF NOT EXISTS Collocation_Junction (
+    idx INTEGER NOT NULL,
     derivative_form_id INTEGER NOT NULL,
     collocation_id INTEGER NOT NULL,
     CONSTRAINT pk PRIMARY KEY (
+        idx,
         derivative_form_id,
         collocation_id
     ),
