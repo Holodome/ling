@@ -7,6 +7,14 @@ from ling import *
 import dataclasses
 
 
+def flatten_by_idx(arr, idx):
+    return list(map(lambda it: it[idx], arr))
+
+
+def unwrap(x):
+    return flatten_by_idx(x, 0)
+
+
 @dataclasses.dataclass
 class DBCtx:
     filename: str = ""
@@ -100,7 +108,8 @@ class DBCtx:
                      FROM Derivative_Form
                      WHERE Derivative_Form.form = (?)
                      """
-            words = list(map(lambda it: (collocation_id, sent.words[it[1]], it[0]), enumerate(collocation.words)))
+            words = list(map(lambda it: (collocation_id, it[0], sent.words[it[1]] ), enumerate(collocation.words)))
+            print(words)
             self.cursor.executemany(sql, words)
 
             sql = """INSERT INTO Sentence_Collocation_Junction (sentence_id, collocation_id)
@@ -153,18 +162,74 @@ class DBCtx:
             init_id = self.cursor.execute(sql, (word, ))
         else:
             init_id = self.cursor.execute(sql)
-        init_id = list(map(lambda it: it[0], init_id))
+        init_id = flatten_by_idx(init_id, 0)
         sql = """SELECT form FROM Initial_Form WHERE id IN (%s)""" % ", ".join("?" * len(init_id))
         form_it = self.cursor.execute(sql, init_id)
-        form = list(map(lambda it: it[0], form_it))
+        form = flatten_by_idx(form_it, 0)
 
         return form
 
-    def get_all_collocations(self, word: Union[str, None] = None):
-        ...
+    def get_collocation_ids(self, word: Union[str, None] = None):
+        sql = """SELECT DISTINCT collocation_id FROM Collocation_Junction"""
+        if word is not None:
+            sql += """ WHERE derivative_form_id IN (
+                        SELECT id FROM Derivative_Form 
+                        WHERE form = (?)
+                    )"""
+            col_ids = self.cursor.execute(sql, (word,))
+        else:
+            col_ids = self.cursor.execute(sql)
+        col_ids = unwrap(col_ids)
+        return col_ids
 
-    def get_all_connections(self, word: Union[str, None] = None):
-        ...
+    def get_collocation_by_id(self, col_id):
+        sql = """SELECT f.form, j.idx FROM Derivative_Form f
+                             INNER JOIN Collocation_Junction j 
+                             ON f.id = j.derivative_form_id 
+                             WHERE j.collocation_id = (?)"""
+        derivative_forms = self.cursor.execute(sql, (col_id,))
+        derivative_forms = list(derivative_forms)
+        derivative_forms.sort(key=lambda it: it[1])
+        derivative_forms = unwrap(derivative_forms)
+
+        deriv_structs = []
+        for form in derivative_forms:
+            ds = self.get_deriv_form(form)
+            assert ds
+            deriv_structs.append(ds[0])
+        return deriv_structs
+
+    def get_collocation(self, word: Union[str, None] = None):
+        col_ids = self.get_collocation_ids(word)
+
+        result = []
+        for col_id in col_ids:
+            deriv_structs = self.get_collocation_by_id(col_id)
+            result.append(deriv_structs)
+
+        return result
+
+    def get_connection(self, word: Union[str, None] = None):
+        col_ids = self.get_collocation_ids(word)
+        col_ids_fmt = ",".join("?" * len(col_ids))
+        sql = """SELECT id, predicate, object FROM Conn"""
+        if word is not None:
+            sql += """ WHERE predicate in (%s)
+               OR object in (%s)""" % (col_ids_fmt, col_ids_fmt)
+            conn_ids = self.cursor.execute(sql, [*col_ids, *col_ids])
+        else:
+            conn_ids = self.cursor.execute(sql)
+
+        result = []
+
+        conn_ids = list(conn_ids)
+        for conn_id, pred_id, obj_id in conn_ids:
+            pred_conn = self.get_collocation_by_id(pred_id)
+            obj_conn = self.get_collocation_by_id(obj_id)
+            conn_info = (pred_conn, obj_conn)
+            result.append(conn_info)
+
+        return result
 
 
 def test_db_ctx():
@@ -199,6 +264,22 @@ def test_db_ctx():
 
         print("--All derivs")
         a = ctx.get_deriv_form()
+        print('\n'.join(map(str, a)))
+
+        print("--All collocations")
+        a = ctx.get_collocation()
+        print('\n'.join(map(str, a)))
+
+        print("--Coll with", word)
+        a = ctx.get_collocation(word)
+        print('\n'.join(map(str, a)))
+
+        print("--All connections")
+        a = ctx.get_connection()
+        print('\n'.join(map(str, a)))
+
+        print("--Connection with", word)
+        a = ctx.get_connection(word)
         print('\n'.join(map(str, a)))
 
         ctx.database.close()
