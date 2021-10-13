@@ -1,8 +1,7 @@
-import os
 import sqlite3
 from ling import *
 import dataclasses
-import pymorphy2
+import operator
 
 
 @dataclasses.dataclass
@@ -11,30 +10,33 @@ class DBCtx:
     database: sqlite3.Connection = None
     cursor: sqlite3.Cursor = None
 
-    def open_from(self, filename):
-        self.filename = filename
-        self.database = sqlite3.connect(filename)
-        self.cursor = self.database.cursor()
-
     def create_tables(self):
         tables_create_query = open("sql/tables.sql").read()
         self.cursor.executescript(tables_create_query)
         self.database.commit()
 
-    def create_new(self, filename):
+    def create_or_open(self, filename):
         self.filename = filename
         self.database = sqlite3.connect(filename)
         self.cursor = self.database.cursor()
         self.create_tables()
 
-    def create_or_open(self, filename):
-        if os.path.exists(filename):
-            return self.open_from(filename)
-        return self.create_new(filename)
-
     def add_words_if_not_exist(self, words: List[str]):
-        sql = """INSERT OR IGNORE INTO Derivative_Form (form, initial_form_id) VALUES (?, ?)"""
-        words_reformatted = list(map(lambda it: (it, 1), words))
+        derivative_forms = list(map(DerivativeForm.create, words))
+
+        initial_forms = list(map(lambda it: (it.initial_form, ), derivative_forms))
+        sql = """INSERT OR IGNORE INTO Initial_Form (form) VALUES(?)"""
+        self.cursor.executemany(sql, initial_forms)
+
+        sql = """SELECT id FROM Initial_Form WHERE form IN (%s)""" % ", ".join("?" * len(words))
+        initial_form_ids = self.cursor.execute(sql, list(map(lambda it: it[0], initial_forms)))
+        initial_form_ids = [it[0] for it in initial_form_ids]
+
+        sql = """INSERT OR IGNORE INTO Derivative_Form (form, initial_form_id, part_of_speech) VALUES (?, ?, ?)"""
+        words_reformatted = []
+        for derivative_form, initial_form_id in zip(derivative_forms, initial_form_ids):
+            form_sql_data = (derivative_form.form, initial_form_id, derivative_form.part_of_speech.value)
+            words_reformatted.append(form_sql_data)
         self.cursor.executemany(sql, words_reformatted)
         self.database.commit()
 
@@ -42,7 +44,6 @@ class DBCtx:
         sql = "SELECT form FROM Derivative_Form"
         # query = self.cursor.execute(sql, words)
         query = self.cursor.execute(sql)
-        print(*query)
 
     def add_or_update_sentence_record(self, sent: SentenceCtx):
         self.add_words_if_not_exist(sent.words)

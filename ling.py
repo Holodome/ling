@@ -1,7 +1,51 @@
 import enum
 import dataclasses
 from typing import List, DefaultDict, Tuple, Set, Dict, NewType
-import csv
+import pymorphy2
+
+
+morph = pymorphy2.MorphAnalyzer()
+
+
+class PartOfSpeech(enum.Enum):
+    NONE = 0x0
+    NOUN = 0x1  # существительное
+    ADJ = 0x2  # прилагательное
+    COMP = 0x3  # компаратив
+    VERB = 0x4  # глагол
+    PRT = 0x5  # причастие
+    GRND = 0x6  # деепричастие
+    NUMR = 0x7  # числительное
+    NPRO = 0x8  # местоимение
+    PRED = 0x9  # предикатив
+    PREP = 0xA  # предлог
+    CONJ = 0xB  # союз
+    PRCL = 0xC  # частица
+    INTJ = 0xD  # междометие
+    ADVB = 0xE  # наречие
+
+    @staticmethod
+    def from_pymorphy_str(pm: str):
+        pymorphy_to_pos_dict = {
+            "NOUN": PartOfSpeech.NOUN,
+            "ADJF": PartOfSpeech.ADJ,
+            "ADJS": PartOfSpeech.ADJ,
+            "COMP": PartOfSpeech.COMP,
+            "VERB": PartOfSpeech.VERB,
+            "INFN": PartOfSpeech.VERB,
+            "PRTF": PartOfSpeech.PRT,
+            "PRTS": PartOfSpeech.PRT,
+            "GRND": PartOfSpeech.GRND,
+            "NUMR": PartOfSpeech.NUMR,
+            "ADVB": PartOfSpeech.ADVB,
+            "NPRO": PartOfSpeech.NPRO,
+            "PRED": PartOfSpeech.PRED,
+            "PREP": PartOfSpeech.PREP,
+            "CONJ": PartOfSpeech.CONJ,
+            "PRCL": PartOfSpeech.PRCL,
+            "INTJ": PartOfSpeech.INTJ,
+        }
+        return pymorphy_to_pos_dict.get(pm)
 
 
 class LingKind(enum.Enum):
@@ -272,6 +316,35 @@ class GlobalLingContext:
         pass
 
 
+def replace_ee(text: str) -> str:
+    text = text.replace("ё", "е")
+    return text
+
+
+@dataclasses.dataclass
+class DerivativeForm:
+    form: str
+    initial_form: str
+    part_of_speech: PartOfSpeech
+
+    @staticmethod
+    def create(word: str):
+        parse_results = morph.parse(word)
+        if parse_results:
+            form = parse_results[0]
+            initial_form = form.normal_form
+            part_of_speech = PartOfSpeech.from_pymorphy_str(form.tag.POS)
+            derivative_form = DerivativeForm(word, initial_form, part_of_speech)
+
+            return derivative_form
+        return None
+
+
+def test_derivative_form():
+    form = DerivativeForm.create("Летчик")
+    print(form)
+
+
 def test_ctx():
     text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
     text_ctx = TextCtx()
@@ -286,4 +359,5 @@ def test_ctx():
 
 
 if __name__ == "__main__":
-    test_ctx()
+    test_derivative_form()
+    # test_ctx()
