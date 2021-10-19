@@ -60,10 +60,10 @@ class DBCtx:
         #
         # add sentence record
         #
-        sql = "INSERT OR IGNORE INTO Sentence (text) VALUES (?)"
+        sql = "INSERT OR IGNORE INTO Sentence (contents) VALUES (?)"
         self.cursor.execute(sql, (sent.text, ))
 
-        sql = "SELECT id from Sentence WHERE TEXT = (?)"
+        sql = "SELECT id from Sentence WHERE contents = (?)"
         sentence_id = self.cursor.execute(sql, (sent.text, ))
         sentence_id = next(sentence_id)
 
@@ -231,6 +231,46 @@ class DBCtx:
 
         return result
 
+    def get_sentence_words(self):
+        ...
+
+    def get_sentence_text(self, sent_id: int):
+        sql = """SELECT contents from Sentence WHERE id = (?)"""
+        sentences = self.cursor.execute(sql, (sent_id, ))
+        result = next(sentences)[0]
+        return result
+
+    def get_sentence_collocations(self, sent_id):
+        sql = """SELECT collocation_id FROM Sentence_Colloction_Junction
+                 WHERE sentence_id = (?)"""
+        collocation_ids = self.cursor.execute(sql, (sent_id, ))
+        collocation_ids = unwrap(collocation_ids)
+        return collocation_ids
+
+    def get_sentence_connections(self, sent_id):
+        sql = """SELECT connection_id FROM Sentence_Connection_Junction
+                 WHERE sentence_id = (?)"""
+        conn_ids = self.cursor.execute(sql, (sent_id, ))
+        conn_ids = unwrap(conn_ids)
+        return conn_ids
+
+    def get_sentences_by_word(self, word: str):
+        # @TODO(hl): Should this go through the DerivativeForm?
+        sql = """SELECT id FROM Sentence WHERE contents LIKE '%' || ? || '%' """
+        sentences = self.cursor.execute(sql, (word, ))
+        sentences = unwrap(sentences)
+        return sentences
+
+    def get_sentence_id(self, text: Union[str, None] = None):
+        sql = """SELECT id, contents FROM Sentence"""
+        if text is not None:
+            sql += """ WHERE text in (?)"""
+            sent_ids = self.cursor.execute(sql, (text, ))
+        else:
+            sent_ids = self.cursor.execute(sql)
+        sent_ids = unwrap(sent_ids)
+        return sent_ids
+
 
 def test_db_ctx():
     text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
@@ -282,10 +322,22 @@ def test_db_ctx():
         a = ctx.get_connection(word)
         print('\n'.join(map(str, a)))
 
+        print("--All sentence ids")
+        a = ctx.get_sentence_id()
+        print("\n".join(map(str, a)))
+
+        print("--All sentence texts")
+        a = list(map(ctx.get_sentence_text, a))
+        print("\n".join(a))
+
+        print("--Sentences with", word)
+        a = ctx.get_sentences_by_word(word)
+        print("\n".join(map(str, a)))
+
         ctx.database.close()
     except Exception:
         traceback.print_exc()
-    os.remove(db_name)
+    # os.remove(db_name)
 
 
 if __name__ == "__main__":

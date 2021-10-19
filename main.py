@@ -1,6 +1,6 @@
 import sys 
 from PyQt5.QtWidgets import QApplication
-from app import Application
+
 
 
 def excepthook_override(cls, exception, traceback):

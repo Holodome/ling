@@ -1,129 +1,258 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
-    <height>438</height>
+    <width>617</width>
+    <height>447</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Form</string>
   </property>
-  <widget class="QWidget" name="centralwidget">
-   <widget class="QTextEdit" name="text_edit">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>50</y>
-      <width>571</width>
-      <height>241</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QComboBox" name="kind_selection">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>310</y>
-      <width>161</width>
-      <height>31</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="mark_button">
-    <property name="geometry">
-     <rect>
-      <x>170</x>
-      <y>310</y>
-      <width>112</width>
-      <height>32</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Назначить</string>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="input_lock_btn">
-    <property name="geometry">
-     <rect>
-      <x>420</x>
-      <y>310</y>
-      <width>161</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Заблокировать ввод</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="show_result_btn">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>350</y>
-      <width>161</width>
-      <height>32</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Показать результат</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="open_file_btn">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>112</width>
-      <height>32</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Открыть файл</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="save_btn">
-    <property name="geometry">
-     <rect>
-      <x>170</x>
-      <y>350</y>
-      <width>112</width>
-      <height>32</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Сохранить</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="open_from_output_btn">
-    <property name="geometry">
-     <rect>
-      <x>350</x>
-      <y>10</y>
-      <width>231</width>
-      <height>32</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Открыть файл результата</string>
-    </property>
-   </widget>
-  </widget>
-  <widget class="QMenuBar" name="menubar">
+  <widget class="QPushButton" name="show_all_sent_btn">
    <property name="geometry">
     <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>600</width>
+     <x>10</x>
+     <y>10</y>
+     <width>221</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Просмотреть все предложения</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="find_init_btn">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>110</y>
+     <width>221</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Найти начальную форму</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="open_bd_btn">
+   <property name="geometry">
+    <rect>
+     <x>490</x>
+     <y>20</y>
+     <width>111</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Открыть БД</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="open_bd_rl">
+   <property name="geometry">
+    <rect>
+     <x>499</x>
+     <y>60</y>
+     <width>101</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Открытая БД:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="worc_count_rl">
+   <property name="geometry">
+    <rect>
+     <x>330</x>
+     <y>20</y>
+     <width>91</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Число слов:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="coll_count_rl">
+   <property name="geometry">
+    <rect>
+     <x>300</x>
+     <y>60</y>
+     <width>121</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Число сочетаний:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="conn_count_rl">
+   <property name="geometry">
+    <rect>
+     <x>320</x>
+     <y>100</y>
+     <width>101</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Число связей:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="sent_count_rl">
+   <property name="geometry">
+    <rect>
+     <x>270</x>
+     <y>140</y>
+     <width>141</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Число предложений:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="word_enter_le">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>70</y>
+     <width>221</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="placeholderText">
+    <string>Введите слово</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="find_coll_btn">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>150</y>
+     <width>221</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Найти все сочетния</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="find_conn_btn">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>190</y>
+     <width>221</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Найти все связи</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="word_enter_rl">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>50</y>
+     <width>111</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Ввод слова</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="find_sent_btn">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>230</y>
+     <width>221</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Найти все предложения</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="word_count_wl">
+   <property name="geometry">
+    <rect>
+     <x>420</x>
+     <y>20</y>
+     <width>60</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="coll_count_wl">
+   <property name="geometry">
+    <rect>
+     <x>420</x>
+     <y>60</y>
+     <width>60</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="conn_count_wl">
+   <property name="geometry">
+    <rect>
+     <x>420</x>
+     <y>100</y>
+     <width>60</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="sent_count_wl">
+   <property name="geometry">
+    <rect>
+     <x>420</x>
+     <y>140</y>
+     <width>60</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="db_name_le">
+   <property name="geometry">
+    <rect>
+     <x>480</x>
+     <y>90</y>
+     <width>113</width>
      <height>22</height>
     </rect>
    </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="readOnly">
+    <bool>true</bool>
+   </property>
+   <property name="placeholderText">
+    <string>DB </string>
+   </property>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>

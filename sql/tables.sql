@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS Conn ( -- connection, but it is reserved
 
 CREATE TABLE IF NOT EXISTS Sentence (
     id INTEGER PRIMARY KEY,
-    text TEXT NOT NULL UNIQUE
+    contents TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS Sentence_Collocation_Junction (
