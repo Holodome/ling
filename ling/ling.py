@@ -1,6 +1,6 @@
 import enum
 import dataclasses
-from typing import List, DefaultDict, Tuple, Set, Dict, NewType
+from typing import List, Tuple, NewType
 import pymorphy2
 
 
@@ -272,7 +272,7 @@ class TextCtx:
         self.sentences = sentences
         self.sentence_start_idxs = sentence_start_idxs
         self.sentence_ctxs = sentence_ctxs
-        
+
     def get_sentence_idx_from_cursor(self, cursor: int) -> int:
         if not self.sentences:
             return -1
@@ -299,26 +299,6 @@ class TextCtx:
 
 
 WordID = NewType("WordID", int)
-
-
-@dataclasses.dataclass
-class GlobalLingContext:
-    words: Dict[WordID, str] = dataclasses.field(default_factory=dict)
-    collocations: List[Tuple[List[WordID], LingKind]] = dataclasses.field(default_factory=list)
-
-    def add_word(self, word: str) -> WordID:
-        str_hash = hash(word)
-        word_id = WordID(str_hash)
-        self.words[word_id] = word
-        return word_id
-
-    def record_sentence_ctx_changes(self, ctx: SentenceCtx):
-        pass
-
-
-def replace_ee(text: str) -> str:
-    text = text.replace("ё", "е")
-    return text
 
 
 @dataclasses.dataclass

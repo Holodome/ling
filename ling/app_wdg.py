@@ -1,6 +1,22 @@
+import logging
+import os
+
 from PyQt5 import QtWidgets, uic
-from ling import *
-from db_model import DBCtx
+from .ling import *
+from .db_model import DBCtx
+
+
+def get_config_filename():
+    home_folder = os.path.expanduser("~")
+    config_file = os.path.join(home_folder, ".ling")
+    return config_file
+
+
+class SentenceTableWidget(QtWidgets.QTableWidget):
+    def __init__(self, ctx, sentence_ids: List[], *args):
+        super().__init__(*args)
+
+
 
 
 class AppWidget(QtWidgets.QMainWindow):
@@ -9,8 +25,30 @@ class AppWidget(QtWidgets.QMainWindow):
         self.db = DBCtx()
         self.ctx = GlobalLingContext()
 
-        uic.loadUi("../uis/app.ui", self)
+        uic.loadUi("uis/app.ui", self)
         self.init_ui()
+
+        config_file = get_config_filename()
+        logging.debug("Config filepath %s", config_file)
+        if os.path.exists(config_file):
+            file_contents = open(config_file).read()
+            logging.debug("Config contents %s", file_contents)
+            db_name = file_contents
+            if os.path.exists(db_name):
+                logging.info("Found record of open database %s in config", db_name)
+                self.init_for_file(db_name)
+            else:
+                os.remove(config_file)
+
+    def __del__(self):
+        self.write_db_name()
+
+    def write_db_name(self):
+        db_name = self.db.filename
+        if db_name:
+            config_filename = get_config_filename()
+            open(config_filename, "w").write(db_name)
+            logging.info("Saved to config db %s", db_name)
 
     def generate_statistics(self):
         ...
@@ -47,9 +85,13 @@ class AppWidget(QtWidgets.QMainWindow):
     def get_entered_word(self):
         text = self.word_enter_le.text()
         text = text.strip()
+        return text
 
     def show_all_sentences(self):
-        ...
+        sentence_ids = self.db.get_sentence_id()
+        for sid in sentence_ids:
+            text = self.db.get_sentence_text(sid)
+            print(text)
 
     def find_coll(self):
         ...
@@ -63,11 +105,15 @@ class AppWidget(QtWidgets.QMainWindow):
     def find_sent(self):
         ...
 
+    def init_for_file(self, filename):
+        logging.info("Initializing for db %s", filename)
+        self.db.create_or_open(filename)
+        self.generate_view()
+
     def open_bd(self):
         filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", filter="*.sqlite")[0]
         if filename:
-            self.db.create_or_open(filename)
-            self.generate_view()
+            self.init_for_file(filename)
 
 
 def test_app_wdg():

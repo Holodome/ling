@@ -1,6 +1,7 @@
 from PyQt5 import QtWidgets, uic
 
 from ling import *
+from qt_tools import *
 
 
 class SentenceEditWidget(QtWidgets.QMainWindow):
@@ -9,7 +10,7 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         self.ctx = ctx
         self.is_view_detailed = False
 
-        uic.loadUi("../uis/sentence_edit.ui", self)
+        uic.loadUi("uis/sentence_edit.ui", self)
         self.init_ui()
 
     def generate_connections_list(self):

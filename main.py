@@ -1,6 +1,7 @@
 import sys 
 from PyQt5.QtWidgets import QApplication
-
+from ling.app_wdg import AppWidget
+from ling import logger
 
 
 def excepthook_override(cls, exception, traceback):
@@ -9,9 +10,11 @@ def excepthook_override(cls, exception, traceback):
 
 def main():
     sys.excepthook = excepthook_override
+    logger.init_logger()
+
     app = QApplication(sys.argv)
-    exec = Application()
-    exec.show()
+    widget = AppWidget()
+    widget.show()
     sys.exit(app.exec_())
 
 

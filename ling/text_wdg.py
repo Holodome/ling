@@ -10,7 +10,7 @@ class TextEditWidget(QtWidgets.QMainWindow):
         self.ctx = ctx
         self.per_sentence_widgets = {}
 
-        uic.loadUi("../uis/text_edit.ui", self)
+        uic.loadUi("uis/text_edit.ui", self)
         self.init_ui()
 
     def generate_view(self):

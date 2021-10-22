@@ -1,9 +1,11 @@
 import os
 import sqlite3
 import traceback
-from typing import Union
+from typing import Union, List
+import logging
+import functools
 
-from ling import *
+from .ling import *
 import dataclasses
 
 
@@ -15,23 +17,49 @@ def unwrap(x):
     return flatten_by_idx(x, 0)
 
 
+def api_call(func):
+    """
+    Декоратор для методов API работы с базой данных - мы хотим получить корректную обработку ошибок
+    в случае отсутствия инициализации (когда бд не открыта) без исключений и их обработки
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        assert len(args) >= 1
+        self = args[0]
+        if self.database is not None:
+            return func(*args, **kwargs)
+        logging.debug("Tried to call func %s with no database open" % func.__name__)
+        return None
+    return wrapper
+
+
 @dataclasses.dataclass
 class DBCtx:
     filename: str = ""
     database: sqlite3.Connection = None
     cursor: sqlite3.Cursor = None
 
-    def create_tables(self):
-        tables_create_query = open("sql/tables.sql").read()
-        self.cursor.executescript(tables_create_query)
-        self.database.commit()
+    def __del__(self):
+        if self.cursor is not None:
+            self.database.commit()
+            self.cursor.close()
+        if self.database is not None:
+            self.database.close()
 
     def create_or_open(self, filename):
         self.filename = filename
         self.database = sqlite3.connect(filename)
         self.cursor = self.database.cursor()
         self.create_tables()
+        logging.info("Opened DB %s", filename)
 
+    @api_call
+    def create_tables(self):
+        tables_create_query = open("sql/tables.sql").read()
+        self.cursor.executescript(tables_create_query)
+        self.database.commit()
+
+    @api_call
     def add_words_if_not_exist(self, words: List[str]):
         derivative_forms = list(map(DerivativeForm.create, words))
 
@@ -55,6 +83,7 @@ class DBCtx:
         self.cursor.executemany(sql, words_reformatted)
         self.database.commit()
 
+    @api_call
     def add_or_update_sentence_record(self, sent: SentenceCtx):
         self.add_words_if_not_exist(sent.words)
         #
@@ -132,6 +161,7 @@ class DBCtx:
 
         self.database.commit()
 
+    @api_call
     def get_deriv_form(self, word: Union[str, None] = None):
         sql = """SELECT form, initial_form_id, part_of_speech FROM Derivative_Form"""
         if word is not None:
@@ -155,6 +185,7 @@ class DBCtx:
             derivs.append(d)
         return derivs
 
+    @api_call
     def get_initial_form(self, word: Union[str, None] = None):
         sql = """SELECT initial_form_id FROM Derivative_Form"""
         if word is not None:
@@ -169,6 +200,7 @@ class DBCtx:
 
         return form
 
+    @api_call
     def get_collocation_ids(self, word: Union[str, None] = None):
         sql = """SELECT DISTINCT collocation_id FROM Collocation_Junction"""
         if word is not None:
@@ -182,6 +214,7 @@ class DBCtx:
         col_ids = unwrap(col_ids)
         return col_ids
 
+    @api_call
     def get_collocation_by_id(self, col_id):
         sql = """SELECT f.form, j.idx FROM Derivative_Form f
                              INNER JOIN Collocation_Junction j 
@@ -199,6 +232,7 @@ class DBCtx:
             deriv_structs.append(ds[0])
         return deriv_structs
 
+    @api_call
     def get_collocation(self, word: Union[str, None] = None):
         col_ids = self.get_collocation_ids(word)
 
@@ -209,6 +243,7 @@ class DBCtx:
 
         return result
 
+    @api_call
     def get_connection(self, word: Union[str, None] = None):
         col_ids = self.get_collocation_ids(word)
         col_ids_fmt = ",".join("?" * len(col_ids))
@@ -231,15 +266,18 @@ class DBCtx:
 
         return result
 
+    @api_call
     def get_sentence_words(self):
         ...
 
+    @api_call
     def get_sentence_text(self, sent_id: int):
         sql = """SELECT contents from Sentence WHERE id = (?)"""
         sentences = self.cursor.execute(sql, (sent_id, ))
         result = next(sentences)[0]
         return result
 
+    @api_call
     def get_sentence_collocations(self, sent_id):
         sql = """SELECT collocation_id FROM Sentence_Colloction_Junction
                  WHERE sentence_id = (?)"""
@@ -247,6 +285,7 @@ class DBCtx:
         collocation_ids = unwrap(collocation_ids)
         return collocation_ids
 
+    @api_call
     def get_sentence_connections(self, sent_id):
         sql = """SELECT connection_id FROM Sentence_Connection_Junction
                  WHERE sentence_id = (?)"""
@@ -254,6 +293,7 @@ class DBCtx:
         conn_ids = unwrap(conn_ids)
         return conn_ids
 
+    @api_call
     def get_sentences_by_word(self, word: str):
         # @TODO(hl): Should this go through the DerivativeForm?
         sql = """SELECT id FROM Sentence WHERE contents LIKE '%' || ? || '%' """
@@ -261,6 +301,7 @@ class DBCtx:
         sentences = unwrap(sentences)
         return sentences
 
+    @api_call
     def get_sentence_id(self, text: Union[str, None] = None):
         sql = """SELECT id, contents FROM Sentence"""
         if text is not None:
