@@ -1,11 +1,12 @@
 import os
 import sqlite3
 import traceback
+import typing
 from typing import Union, List
 import logging
 import functools
 
-from .ling import *
+import ling
 import dataclasses
 
 
@@ -33,6 +34,48 @@ def api_call(func):
     return wrapper
 
 
+InitialFormID = typing.NewType("InitialFormID", int)
+DerivativeFormID = typing.NewType("DerivativeFormID", int)
+CollocationID = typing.NewType("CollocationID", int)
+ConnID = typing.NewType("ConnID", int)
+SentenceID = typing.NewType("SentenceID", int)
+
+
+@dataclasses.dataclass
+class InitialForm:
+    id: InitialFormID
+    form: str
+
+
+@dataclasses.dataclass
+class DerivativeForm:
+    id: DerivativeFormID
+    initial_form_id: InitialFormID
+    form: str
+    part_of_speech: ling.PartOfSpeech
+
+@dataclasses.dataclass
+class Collocation:
+    id: CollocationID
+    kind: ling.LingKind
+    words: List[DerivativeFormID]
+
+
+@dataclasses.dataclass
+class Connection:
+    id: ConnID
+    predicate: CollocationID
+    object_: CollocationID
+
+
+@dataclasses.dataclass
+class Sentence:
+    id: SentenceID
+    contents: str
+    collocations: List[CollocationID]
+    connections: List[ConnID]
+
+
 @dataclasses.dataclass
 class DBCtx:
     filename: str = ""
@@ -58,6 +101,34 @@ class DBCtx:
         tables_create_query = open("sql/tables.sql").read()
         self.cursor.executescript(tables_create_query)
         self.database.commit()
+
+    @api_call
+    def get_all_initial_forms(self) -> List[InitialForm]:
+        pass
+
+    @api_call
+    def get_all_derivative_forms(self) -> List[DerivativeForm]:
+        pass
+
+    @api_call
+    def get_all_collocations(self) -> List[Collocation]:
+        pass
+
+    @api_call
+    def get_all_connections(self) -> List[Connection]:
+        pass
+
+    @api_call
+    def get_all_sentences(self) -> List[Sentence]:
+        pass
+
+    @api_call
+    def get_initial_form(self, id_: InitialFormID) -> InitialForm:
+        pass
+
+    @api_call
+    def get_derivative_form(self, id_: DerivativeFormID) -> DerivativeForm:
+        pass
 
     @api_call
     def add_words_if_not_exist(self, words: List[str]):

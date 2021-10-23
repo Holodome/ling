@@ -13,7 +13,7 @@ def get_config_filename():
 
 
 class SentenceTableWidget(QtWidgets.QTableWidget):
-    def __init__(self, ctx, sentence_ids: List[], *args):
+    def __init__(self, ctx, sentence_ids: List[int], *args):
         super().__init__(*args)
 
 
@@ -23,7 +23,6 @@ class AppWidget(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.db = DBCtx()
-        self.ctx = GlobalLingContext()
 
         uic.loadUi("uis/app.ui", self)
         self.init_ui()
@@ -51,7 +50,10 @@ class AppWidget(QtWidgets.QMainWindow):
             logging.info("Saved to config db %s", db_name)
 
     def generate_statistics(self):
+        word_count = self.db.s
         ...
+
+
 
     def generate_view(self):
         self.generate_statistics()

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS Initial_Form (
 CREATE TABLE IF NOT EXISTS Derivative_Form (
     id INTEGER PRIMARY KEY,
     initial_form_id INTEGER NOT NULL,
-    form TEXT NOT NULL UNIQUE,
+    form TEXT NOT NULL,
     part_of_speech int NOT NULL,
     -- this table can be populated with all word parameters there can exist - like type of speech, sex etc.
     FOREIGN KEY(initial_form_id) REFERENCES Initial_Form (id)
