@@ -17,8 +17,6 @@ class SentenceTableWidget(QtWidgets.QTableWidget):
         super().__init__(*args)
 
 
-
-
 class AppWidget(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -50,10 +48,18 @@ class AppWidget(QtWidgets.QMainWindow):
             logging.info("Saved to config db %s", db_name)
 
     def generate_statistics(self):
-        word_count = self.db.s
-        ...
-
-
+        sentences = self.db.get_all_sentences()
+        sentence_count = len(sentences)
+        self.sent_count_wl.setText("%d" % sentence_count)
+        connections = self.db.get_all_connections()
+        connection_count = len(connections)
+        self.conn_count_wl.setText("%d" % connection_count)
+        colls = self.db.get_all_collocations()
+        coll_count = len(colls)
+        self.coll_count_wl.setText("%d" % coll_count)
+        words = self.db.get_all_derivative_forms()
+        word_count = len(words)
+        self.word_count_wl.setText("%d" % word_count)
 
     def generate_view(self):
         self.generate_statistics()
@@ -81,8 +87,6 @@ class AppWidget(QtWidgets.QMainWindow):
         self.find_init_btn.clicked.connect(self.find_init)
         self.find_sent_btn.clicked.connect(self.find_sent)
         self.open_bd_btn.clicked.connect(self.open_bd)
-
-        self.generate_view()
 
     def get_entered_word(self):
         text = self.word_enter_le.text()

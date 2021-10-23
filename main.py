@@ -9,10 +9,11 @@ def excepthook_override(cls, exception, traceback):
 
 
 def main():
-    sys.excepthook = excepthook_override
     logger.init_logger()
 
     app = QApplication(sys.argv)
+    sys.excepthook = excepthook_override
+
     widget = AppWidget()
     widget.show()
     sys.exit(app.exec_())
