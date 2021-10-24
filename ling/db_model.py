@@ -238,7 +238,7 @@ class DBCtx:
     @api_call
     def get_deriv_form_id_by_word(self, word: str) -> List[DerivativeFormID]:
         sql = """SELECT id FROM Derivative_Form WHERE form = (?)"""
-        deriv = list(self.cursor.execute(sql, (word,)))
+        deriv = unwrap(self.cursor.execute(sql, (word,)))
         deriv = list(map(DerivativeFormID, deriv))
         return deriv
 

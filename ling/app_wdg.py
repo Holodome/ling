@@ -235,17 +235,15 @@ class AppWidget(QtWidgets.QMainWindow):
         window.resize(table.size())
         window.show()
 
-    def find_coll(self):
-        ...
-
-    def find_conn(self):
-        ...
-
-    def find_init(self):
-        ...
-
     def find(self):
-        pass
+        entered = self.get_entered_word()
+        deriv_ids = app.get().db.get_deriv_form_id_by_word(entered)
+        words = [app.get().db.get_derivative_form(id_) for id_ in deriv_ids]
+        window = QtWidgets.QMainWindow(self)
+        table = WordTableWidget(words)
+        window.setCentralWidget(table)
+        window.resize(table.size())
+        window.show()
 
     def find_sent(self):
         entered = self.get_entered_word()
