@@ -26,7 +26,7 @@
     <string>Просмотреть все предложения</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="find_init_btn">
+  <widget class="QPushButton" name="find_btn">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -36,7 +36,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Найти начальную форму</string>
+    <string>Найти</string>
    </property>
   </widget>
   <widget class="QPushButton" name="open_bd_btn">
@@ -130,32 +130,6 @@
     <string>Введите слово</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="find_coll_btn">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>150</y>
-     <width>221</width>
-     <height>26</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Найти все сочетния</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="find_conn_btn">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>190</y>
-     <width>221</width>
-     <height>26</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Найти все связи</string>
-   </property>
-  </widget>
   <widget class="QLabel" name="word_enter_rl">
    <property name="geometry">
     <rect>
@@ -167,19 +141,6 @@
    </property>
    <property name="text">
     <string>Ввод слова</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="find_sent_btn">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>230</y>
-     <width>221</width>
-     <height>26</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Найти все предложения</string>
    </property>
   </widget>
   <widget class="QLabel" name="word_count_wl">

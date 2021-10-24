@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS Conn ( -- connection, but it is reserved
 CREATE TABLE IF NOT EXISTS Sentence (
     id INTEGER PRIMARY KEY,
     contents TEXT NOT NULL UNIQUE,
-    word_count INT NOT NULL
+    word_count INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Sentence_Collocation_Junction (
@@ -73,4 +73,19 @@ CREATE TABLE IF NOT EXISTS Sentence_Connection_Junction (
 
     FOREIGN KEY(sentence_id) REFERENCES Sentence(id),
     FOREIGN KEY(conn_id) REFERENCES Conn(id)
+);
+
+CREATE TABLE IF NOT EXISTS Sentence_Derivative_Form_Junction (
+    sentence_id INTEGER NOT NULL,
+    deriv_id INTEGER NOT NULL,
+    idx      INTEGER NOT NULL,
+    text_idx INTEGER NOT NULL, -- index in sentence text
+    CONSTRAINT pk PRIMARY KEY (
+        sentence_id,
+        deriv_id,
+        idx
+    ),
+
+    FOREIGN KEY(sentence_id) REFERENCES Sentence(id),
+    FOREIGN KEY(deriv_id) REFERENCES Derivative_Form(id)
 );

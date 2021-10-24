@@ -17,6 +17,65 @@ def get_config_filename():
     return config_file
 
 
+class WordTableWidget(QtWidgets.QMainWindow):
+    COLUMN_NAMES = ["Слово", "Часть речи"]
+    WORD_COL = 0x0
+    POS_COL = 0x1
+
+    def __init__(self, words: List[db.DerivativeForm], *args):
+        logging.info("Creating WordTableWidget")
+
+        super().__init__(*args)
+        self.words = words
+
+        uic.loadUi("uis/word_table.ui", self)
+        self.init_ui()
+
+        self.table.setRowCount(len(words))
+        self.table.setColumnCount(len(self.COLUMN_NAMES))
+        for idx, word in enumerate(words):
+            item = QtWidgets.QTableWidgetItem(word.form)
+            self.table.setItem(idx, self.WORD_COL, item)
+            item = QtWidgets.QTableWidgetItem(str(word.part_of_speech))
+            self.table.setItem(idx, self.POS_COL, item)
+        self.table.setHorizontalHeaderLabels(self.COLUMN_NAMES)
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
+
+    def __del__(self):
+        logging.info("Deleting WordTableWidget")
+
+    def init_ui(self):
+        self.coll_btn.clicked.connect(self.find_coll)
+        self.sent_btn.clicked.connect(self.find_sent)
+
+    def get_list_of_selected_col_table_rows(self):
+        selected_items = self.table.selectedItems()
+        rows = set()
+        for item in selected_items:
+            item_row = item.row()
+            rows.add(item_row)
+        return list(rows)
+
+    def find_sent(self):
+        selected = self.get_list_of_selected_col_table_rows()
+        if selected:
+            selected = selected[0]
+            selected_id = self.words[selected].id
+            # @TODO(hl): SPEED
+            sentences = app.get().db.get_all_sentences()
+            sentences = list(filter(lambda it: selected_id in it.words, sentences))
+
+            window = QtWidgets.QMainWindow(self)
+            table = SentenceTableWidget(sentences)
+            window.setCentralWidget(table)
+            window.resize(table.size())
+            window.show()
+
+    def find_coll(self):
+        ...
+
+
 class SentenceTableWidget(QtWidgets.QMainWindow):
     COLUMN_NAMES = ["Текст", "Число слов", "Число сочетаний", "Число связей"]
     TEXT_COL = 0x0
@@ -40,9 +99,11 @@ class SentenceTableWidget(QtWidgets.QMainWindow):
 
     def init_ui(self):
         self.edit_btn.clicked.connect(self.ling_edit)
+        self.words_btn.clicked.connect(self.find_words)
+        self.conn_btn.clicked.connect(self.find_conns)
+        self.coll_btn.clicked.connect(self.find_colls)
 
     def display_sentences(self, sentences):
-
         self.table.setRowCount(len(sentences))
         self.table.setColumnCount(len(self.COLUMN_NAMES))
         for idx, sent in enumerate(sentences):
@@ -72,7 +133,7 @@ class SentenceTableWidget(QtWidgets.QMainWindow):
         return list(rows)
 
     def ling_edit(self):
-        # @NOTE(hl): This name because 'edit' is reserved by Qt
+        # @NOTE(hl): This function name because 'edit' is reserved by Qt
         selected = self.get_list_of_selected_col_table_rows()
         if selected:
             selected = selected[0]
@@ -81,6 +142,24 @@ class SentenceTableWidget(QtWidgets.QMainWindow):
             sent_ctx = app.get().create_sent_ctx_from_db(sel_id)
             widget = sent_wdg.SentenceEditWidget(sent_ctx, self)
             widget.show()
+
+    def find_words(self):
+        selected = self.get_list_of_selected_col_table_rows()
+        if selected:
+            selected = selected[0]
+            word_ids = self.sentences[selected].words
+            words = [app.get().db.get_derivative_form(id_) for id_ in word_ids]
+            window = QtWidgets.QMainWindow(self)
+            table = WordTableWidget(words)
+            window.setCentralWidget(table)
+            window.resize(table.size())
+            window.show()
+
+    def find_conns(self):
+        pass
+
+    def find_colls(self):
+        pass
 
 
 class AppWidget(QtWidgets.QMainWindow):
@@ -138,26 +217,8 @@ class AppWidget(QtWidgets.QMainWindow):
         self.db_name_le.setText(app.get().db.filename)
 
     def init_ui(self):
-        """
-        show_all_sent_btn
-        find_coll_btn
-        find_conn_btn
-        find_init_btn
-        find_sent_btn
-        open_bd_btn
-
-        coll_count_wl
-        conn_count_wl
-        open_bd_wl
-        sent_count_wl
-        word_count_wl
-        word_enter_le
-        """
         self.show_all_sent_btn.clicked.connect(self.show_all_sentences)
-        self.find_coll_btn.clicked.connect(self.find_coll)
-        self.find_conn_btn.clicked.connect(self.find_conn)
-        self.find_init_btn.clicked.connect(self.find_init)
-        self.find_sent_btn.clicked.connect(self.find_sent)
+        self.find_btn.clicked.connect(self.find)
         self.open_bd_btn.clicked.connect(self.open_bd)
         self.update_btn.clicked.connect(self.generate_view)
 
@@ -183,8 +244,18 @@ class AppWidget(QtWidgets.QMainWindow):
     def find_init(self):
         ...
 
+    def find(self):
+        pass
+
     def find_sent(self):
-        ...
+        entered = self.get_entered_word()
+        sentences_id = app.get().db.get_sentences_id_by_word(entered)
+        sentences = [app.get().db.get_sentence(id_) for id_ in sentences_id]
+        window = QtWidgets.QMainWindow(self)
+        table = SentenceTableWidget(sentences)
+        window.setCentralWidget(table)
+        window.resize(table.size())
+        window.show()
 
     def init_for_file(self, filename):
         logging.info("Initializing for db %s", filename)

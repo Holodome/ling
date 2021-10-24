@@ -76,6 +76,7 @@ class Sentence:
     word_count: int
     collocations: List[CollocationID]
     connections: List[ConnID]
+    words: List[DerivativeFormID]
 
 
 @dataclasses.dataclass
@@ -178,11 +179,16 @@ class DBCtx:
             sql = """SELECT collocation_id FROM Sentence_Collocation_Junction
                          WHERE sentence_id = (?)"""
             coll_ids = unwrap(self.cursor.execute(sql, (id_, )))
+            sql = """SELECT idx, deriv_id FROM Sentence_Derivative_Form_Junction
+                     WHERE sentence_id = (?)"""
+            words_serialized = list(self.cursor.execute(sql, (id_, )))
+            words = list(flatten_by_idx(sorted(words_serialized, key=lambda it: it[0]), 1))
             sent = Sentence(SentenceID(id_),
                             contents,
                             word_count,
                             coll_ids,
-                            conn_ids)
+                            conn_ids,
+                            words)
             result.append(sent)
         return result
 
@@ -307,7 +313,7 @@ class DBCtx:
     def add_or_update_sentence_record(self, sent: ling.SentenceCtx):
         logging.info("Updating sentence %s (wc %d)", sent.text, len(sent.words))
 
-        self.add_words_if_not_exist(sent.words)
+        # self.add_words_if_not_exist(sent.words)
         #
         # add sentence record
         #
@@ -341,9 +347,37 @@ class DBCtx:
         self.cursor.execute(sql, sentence_id)
         sql = """DELETE FROM Sentence_Connection_Junction WHERE sentence_id = (?)"""
         self.cursor.execute(sql, sentence_id)
+        sql = """DELETE FROM Sentence_Derivative_Form_Junction WHERE sentence_id = (?)"""
+        self.cursor.execute(sql, sentence_id)
         #
         # now start populating database again
         #
+        logging.info("Inserting %d words" % len(sent.words))
+        for idx, (word, start_idx) in enumerate(zip(sent.words, sent.word_start_idxs)):
+            deriv_form = ling.DerivativeForm.create(word)
+
+            sql = """INSERT OR IGNORE INTO Initial_Form (form) VALUES (?)"""
+            self.cursor.execute(sql, (deriv_form.initial_form, ))
+
+            sql = """SELECT id FROM Initial_Form WHERE form = (?)"""
+            initial_form_id_it = self.cursor.execute(sql, (deriv_form.initial_form,))
+            initial_form_id = next(initial_form_id_it)[0]
+            form_sql_data = (deriv_form.form, initial_form_id, deriv_form.part_of_speech.value)
+
+            sql = """INSERT OR IGNORE INTO Derivative_Form (form, initial_form_id, part_of_speech) VALUES (?, ?, ?)"""
+            self.cursor.execute(sql, form_sql_data)
+
+            # @TODO(hl): Some kind of hash for this query
+            sql = """SELECT id FROM Derivative_Form
+                     WHERE form = (?) AND initial_form_id = (?) and part_of_speech = (?)"""
+            deriv_id = self.cursor.execute(sql, form_sql_data)
+            deriv_id = next(deriv_id)[0]
+
+            junction_data = (sentence_id[0], deriv_id, idx, start_idx)
+            sql = """INSERT INTO Sentence_Derivative_Form_Junction (sentence_id, deriv_id, idx, text_idx)
+                     VALUES (?, ?, ?, ?)"""
+            self.cursor.execute(sql, junction_data)
+
         logging.info("Inserting %d collocations" % len(sent.collocations))
 
         collocation_ids = []
@@ -396,12 +430,15 @@ def test_db_ctx():
     sentence1.mark_text_part(20, 40, ling.LingKind.PREDICATE)
     sentence1.make_connection(0, 1)
 
+    sentence2 = text_ctx.start_sentence_edit(80)
+
     db_name = "test.sqlite"
 
     try:
         ctx = DBCtx()
         ctx.create_or_open(db_name)
         ctx.add_or_update_sentence_record(sentence1)
+        ctx.add_or_update_sentence_record(sentence2)
 
         # word = "ручкой"
         # print("--Init of ", word)

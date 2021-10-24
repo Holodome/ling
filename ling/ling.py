@@ -266,6 +266,7 @@ class TextCtx:
                 sentence_start = cursor + 1
         sentence_ctxs = [SentenceCtx() for _ in sentences]
         for sentence, ctx in zip(sentences, sentence_ctxs):
+            sentence = sentence.strip()
             ctx.init_from_text(sentence)
 
         self.__init__()
