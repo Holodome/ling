@@ -1,9 +1,14 @@
-import logging
+import dataclasses
 import os
+from typing import *
+import logging
 
 from PyQt5 import QtWidgets, uic
-from .ling import *
-from .db_model import DBCtx
+
+import ling.ling as ling
+import ling.db_model as db
+import ling.app as app
+import ling.sent_wdg as sent_wdg
 
 
 def get_config_filename():
@@ -12,15 +17,76 @@ def get_config_filename():
     return config_file
 
 
-class SentenceTableWidget(QtWidgets.QTableWidget):
-    def __init__(self, ctx, sentence_ids: List[int], *args):
+class SentenceTableWidget(QtWidgets.QMainWindow):
+    COLUMN_NAMES = ["Текст", "Число слов", "Число сочетаний", "Число связей"]
+    TEXT_COL = 0x0
+    WORD_COUNT_COL = 0x1
+    COLL_COUNT_COL = 0x2
+    CONN_COUNT_COL = 0x3
+
+    def __init__(self, sentences: List[db.Sentence], *args):
+        logging.info("Creating SentenceTableWidget")
+
         super().__init__(*args)
+        self.sentences = sentences
+
+        uic.loadUi("uis/sent_table.ui", self)
+        self.init_ui()
+
+        self.display_sentences(sentences)
+
+    def __del__(self):
+        logging.info("Deleting SentenceTableWidget")
+
+    def init_ui(self):
+        self.edit_btn.clicked.connect(self.ling_edit)
+
+    def display_sentences(self, sentences):
+
+        self.table.setRowCount(len(sentences))
+        self.table.setColumnCount(len(self.COLUMN_NAMES))
+        for idx, sent in enumerate(sentences):
+            sent_text = sent.contents
+            item = QtWidgets.QTableWidgetItem(sent_text)
+            self.table.setItem(idx, self.TEXT_COL, item)
+
+            item = QtWidgets.QTableWidgetItem(str(sent.word_count))
+            self.table.setItem(idx, self.WORD_COUNT_COL, item)
+
+            item = QtWidgets.QTableWidgetItem(str(len(sent.collocations)))
+            self.table.setItem(idx, self.COLL_COUNT_COL, item)
+
+            item = QtWidgets.QTableWidgetItem(str(len(sent.connections)))
+            self.table.setItem(idx, self.CONN_COUNT_COL, item)
+
+        self.table.setHorizontalHeaderLabels(self.COLUMN_NAMES)
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
+
+    def get_list_of_selected_col_table_rows(self):
+        selected_items = self.table.selectedItems()
+        rows = set()
+        for item in selected_items:
+            item_row = item.row()
+            rows.add(item_row)
+        return list(rows)
+
+    def ling_edit(self):
+        # @NOTE(hl): This name because 'edit' is reserved by Qt
+        selected = self.get_list_of_selected_col_table_rows()
+        if selected:
+            selected = selected[0]
+            sel_id = self.sentences[selected].id
+
+            sent_ctx = app.get().create_sent_ctx_from_db(sel_id)
+            widget = sent_wdg.SentenceEditWidget(sent_ctx, self)
+            widget.show()
 
 
 class AppWidget(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
+        logging.info("Creating AppWidget")
         super().__init__(parent)
-        self.db = DBCtx()
 
         uic.loadUi("uis/app.ui", self)
         self.init_ui()
@@ -38,32 +104,38 @@ class AppWidget(QtWidgets.QMainWindow):
                 os.remove(config_file)
 
     def __del__(self):
+        logging.info("Deleting AppWidget")
         self.write_db_name()
 
     def write_db_name(self):
-        db_name = self.db.filename
+        db_name = app.AppCtx.get().db.filename
         if db_name:
             config_filename = get_config_filename()
             open(config_filename, "w").write(db_name)
             logging.info("Saved to config db %s", db_name)
 
     def generate_statistics(self):
-        sentences = self.db.get_all_sentences()
+        logging.info("Generating statistics")
+        sentences = app.get().db.get_all_sentences()
         sentence_count = len(sentences)
+        logging.info("Sentence count %d", sentence_count)
         self.sent_count_wl.setText("%d" % sentence_count)
-        connections = self.db.get_all_connections()
+        connections = app.get().db.get_all_connections()
         connection_count = len(connections)
+        logging.info("Connection count %d", connection_count)
         self.conn_count_wl.setText("%d" % connection_count)
-        colls = self.db.get_all_collocations()
+        colls = app.get().db.get_all_collocations()
         coll_count = len(colls)
+        logging.info("Coll count %d", coll_count)
         self.coll_count_wl.setText("%d" % coll_count)
-        words = self.db.get_all_derivative_forms()
+        words = app.get().db.get_all_derivative_forms()
         word_count = len(words)
+        logging.info("Word count count %d", word_count)
         self.word_count_wl.setText("%d" % word_count)
 
     def generate_view(self):
         self.generate_statistics()
-        self.db_name_le.setText(self.db.filename)
+        self.db_name_le.setText(app.get().db.filename)
 
     def init_ui(self):
         """
@@ -87,6 +159,7 @@ class AppWidget(QtWidgets.QMainWindow):
         self.find_init_btn.clicked.connect(self.find_init)
         self.find_sent_btn.clicked.connect(self.find_sent)
         self.open_bd_btn.clicked.connect(self.open_bd)
+        self.update_btn.clicked.connect(self.generate_view)
 
     def get_entered_word(self):
         text = self.word_enter_le.text()
@@ -94,10 +167,12 @@ class AppWidget(QtWidgets.QMainWindow):
         return text
 
     def show_all_sentences(self):
-        sentence_ids = self.db.get_sentence_id()
-        for sid in sentence_ids:
-            text = self.db.get_sentence_text(sid)
-            print(text)
+        sentences = app.get().db.get_all_sentences()
+        window = QtWidgets.QMainWindow(self)
+        table = SentenceTableWidget(sentences)
+        window.setCentralWidget(table)
+        window.resize(table.size())
+        window.show()
 
     def find_coll(self):
         ...
@@ -113,7 +188,7 @@ class AppWidget(QtWidgets.QMainWindow):
 
     def init_for_file(self, filename):
         logging.info("Initializing for db %s", filename)
-        self.db.create_or_open(filename)
+        app.get().db.create_or_open(filename)
         self.generate_view()
 
     def open_bd(self):

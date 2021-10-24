@@ -8,6 +8,11 @@ CREATE TABLE IF NOT EXISTS Derivative_Form (
     initial_form_id INTEGER NOT NULL,
     form TEXT NOT NULL,
     part_of_speech int NOT NULL,
+    CONSTRAINT uniq UNIQUE (
+        initial_form_id,
+        form,
+        part_of_speech
+    ),
     -- this table can be populated with all word parameters there can exist - like type of speech, sex etc.
     FOREIGN KEY(initial_form_id) REFERENCES Initial_Form (id)
 );
@@ -42,7 +47,8 @@ CREATE TABLE IF NOT EXISTS Conn ( -- connection, but it is reserved
 
 CREATE TABLE IF NOT EXISTS Sentence (
     id INTEGER PRIMARY KEY,
-    contents TEXT NOT NULL UNIQUE
+    contents TEXT NOT NULL UNIQUE,
+    word_count INT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Sentence_Collocation_Junction (

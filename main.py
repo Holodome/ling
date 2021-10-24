@@ -1,4 +1,4 @@
-import sys 
+import sys
 from PyQt5.QtWidgets import QApplication
 from ling.app_wdg import AppWidget
 from ling import logger

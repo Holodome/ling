@@ -73,6 +73,7 @@ class Connection:
 class Sentence:
     id: SentenceID
     contents: str
+    word_count: int
     collocations: List[CollocationID]
     connections: List[ConnID]
 
@@ -141,7 +142,7 @@ class DBCtx:
         for id_, kind in values:
             sql = """SELECT derivative_form_id FROM Collocation_Junction
                              WHERE collocation_id = (?)"""
-            deriv_ids = list(self.cursor.execute(sql, (id_, )))
+            deriv_ids = unwrap(self.cursor.execute(sql, (id_, )))
             coll = Collocation(CollocationID(id_),
                                ling.LingKind(kind),
                                deriv_ids)
@@ -165,22 +166,23 @@ class DBCtx:
     @api_call
     def get_all_sentences(self) -> List[Sentence]:
         logging.info("Querying all sentences")
-        sql = "SELECT id, contents FROM Sentence"
+        sql = "SELECT id, contents, word_count FROM Sentence"
         values = list(self.cursor.execute(sql))
         logging.info("Queried %d sentences", len(values))
 
         result = []
-        for id_, contents in values:
+        for id_, contents, word_count in values:
             sql = """SELECT conn_id FROM Sentence_Connection_Junction
                              WHERE sentence_id = (?)"""
-            conn_ids = self.cursor.execute(sql, (id_, ))
+            conn_ids = unwrap(self.cursor.execute(sql, (id_, )))
             sql = """SELECT collocation_id FROM Sentence_Collocation_Junction
                          WHERE sentence_id = (?)"""
-            coll_ids = list(self.cursor.execute(sql, (id_, )))
+            coll_ids = unwrap(self.cursor.execute(sql, (id_, )))
             sent = Sentence(SentenceID(id_),
                             contents,
-                            conn_ids,
-                            coll_ids)
+                            word_count,
+                            coll_ids,
+                            conn_ids)
             result.append(sent)
         return result
 
@@ -303,12 +305,14 @@ class DBCtx:
 
     @api_call
     def add_or_update_sentence_record(self, sent: ling.SentenceCtx):
+        logging.info("Updating sentence %s (wc %d)", sent.text, len(sent.words))
+
         self.add_words_if_not_exist(sent.words)
         #
         # add sentence record
         #
-        sql = "INSERT OR IGNORE INTO Sentence (contents) VALUES (?)"
-        self.cursor.execute(sql, (sent.text, ))
+        sql = "INSERT OR IGNORE INTO Sentence (contents, word_count) VALUES (?, ?)"
+        self.cursor.execute(sql, (sent.text, len(sent.words)))
 
         sql = "SELECT id from Sentence WHERE contents = (?)"
         sentence_id = self.cursor.execute(sql, (sent.text, ))
@@ -340,6 +344,8 @@ class DBCtx:
         #
         # now start populating database again
         #
+        logging.info("Inserting %d collocations" % len(sent.collocations))
+
         collocation_ids = []
         for idx, collocation in enumerate(sent.collocations):
             sql = """INSERT INTO Collocation (kind) VALUES (?)"""
@@ -356,13 +362,13 @@ class DBCtx:
                      WHERE Derivative_Form.form = (?)
                      """
             words = list(map(lambda it: (collocation_id, it[0], sent.words[it[1]] ), enumerate(collocation.words)))
-            print(words)
             self.cursor.executemany(sql, words)
 
             sql = """INSERT INTO Sentence_Collocation_Junction (sentence_id, collocation_id)
                      VALUES (?, ?)"""
             self.cursor.execute(sql, (sentence_id[0], collocation_id))
 
+        logging.info("Inserting %d connections" % len(sent.connections))
         for connection in sent.connections:
             sql = """INSERT INTO Conn (predicate, object) 
                      VALUES(?, ?)
@@ -397,52 +403,50 @@ def test_db_ctx():
         ctx.create_or_open(db_name)
         ctx.add_or_update_sentence_record(sentence1)
 
-        word = "ручкой"
-        print("--Init of ", word)
-        a = ctx.get_initial_form(word)
-        print('\n'.join(map(str, a)))
-
-        print("--All inits")
-        a = ctx.get_initial_form()
-        print('\n'.join(map(str, a)))
-
-        print("--Deriv of", word)
-        a = ctx.get_deriv_form(word)
-        print('\n'.join(map(str, a)))
-
-        print("--All derivs")
-        a = ctx.get_deriv_form()
-        print('\n'.join(map(str, a)))
-
-        print("--All collocations")
-        a = ctx.get_collocation()
-        print('\n'.join(map(str, a)))
-
-        print("--Coll with", word)
-        a = ctx.get_collocation(word)
-        print('\n'.join(map(str, a)))
-
-        print("--All connections")
-        a = ctx.get_connection()
-        print('\n'.join(map(str, a)))
-
-        print("--Connection with", word)
-        a = ctx.get_connection(word)
-        print('\n'.join(map(str, a)))
-
-        print("--All sentence ids")
-        a = ctx.get_sentence_id()
-        print("\n".join(map(str, a)))
-
-        print("--All sentence texts")
-        a = list(map(ctx.get_sentence_text, a))
-        print("\n".join(a))
-
-        print("--Sentences with", word)
-        a = ctx.get_sentences_by_word(word)
-        print("\n".join(map(str, a)))
-
-        ctx.database.close()
+        # word = "ручкой"
+        # print("--Init of ", word)
+        # a = ctx.get_initial_form(word)
+        # print('\n'.join(map(str, a)))
+        #
+        # print("--All inits")
+        # a = ctx.get_initial_form()
+        # print('\n'.join(map(str, a)))
+        #
+        # print("--Deriv of", word)
+        # a = ctx.get_deriv_form(word)
+        # print('\n'.join(map(str, a)))
+        #
+        # print("--All derivs")
+        # a = ctx.get_deriv_form()
+        # print('\n'.join(map(str, a)))
+        #
+        # print("--All collocations")
+        # a = ctx.get_collocation()
+        # print('\n'.join(map(str, a)))
+        #
+        # print("--Coll with", word)
+        # a = ctx.get_collocation(word)
+        # print('\n'.join(map(str, a)))
+        #
+        # print("--All connections")
+        # a = ctx.get_connection()
+        # print('\n'.join(map(str, a)))
+        #
+        # print("--Connection with", word)
+        # a = ctx.get_connection(word)
+        # print('\n'.join(map(str, a)))
+        #
+        # print("--All sentence ids")
+        # a = ctx.get_sentence_id()
+        # print("\n".join(map(str, a)))
+        #
+        # print("--All sentence texts")
+        # a = list(map(ctx.get_sentence_text, a))
+        # print("\n".join(a))
+        #
+        # print("--Sentences with", word)
+        # a = ctx.get_sentences_by_word(word)
+        # print("\n".join(map(str, a)))
     except Exception:
         traceback.print_exc()
     # os.remove(db_name)

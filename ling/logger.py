@@ -16,8 +16,9 @@ def init_logger():
                         handlers=[
                             logging.FileHandler(log_filepath),
                             logging.StreamHandler(sys.stdout)
-                        ]
+                        ],
                         )
-
-    logging.info("Initialized logging")
+    logging.info("Initialized logging to file '%s'", log_filepath)
+    logging.getLogger("PyQt5.uic.uiparser").setLevel(logging.WARN)
+    logging.getLogger("PyQt5.uic.properties").setLevel(logging.WARN)
 

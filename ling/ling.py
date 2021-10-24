@@ -110,6 +110,7 @@ class SentenceCtx:
     non_word_sentence_part_starts: List[int] = dataclasses.field(default_factory=list)
     words: List[str] = dataclasses.field(default_factory=list)
     word_start_idxs: List[int] = dataclasses.field(default_factory=list)
+
     collocations: List[Collocation] = dataclasses.field(default_factory=list)
     collocation_id_freelist: [int] = dataclasses.field(default_factory=list)
     connections: List[Tuple[int, int]] = dataclasses.field(default_factory=list)

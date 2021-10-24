@@ -1,17 +1,22 @@
 from PyQt5 import QtWidgets, uic
 
-from ling import *
-from qt_tools import *
+import ling.ling as ling
+import ling.app as app
+
+import logging
 
 
 class SentenceEditWidget(QtWidgets.QMainWindow):
-    def __init__(self, ctx: SentenceCtx, parent=None):
+    def __init__(self, ctx: ling.SentenceCtx, parent=None):
+        logging.info("Creating SentenceEditWidget")
         super().__init__(parent)
         self.ctx = ctx
-        self.is_view_detailed = False
 
         uic.loadUi("uis/sentence_edit.ui", self)
         self.init_ui()
+
+    def __del__(self):
+        logging.info("Deleting SentenceEditWidget")
 
     def generate_connections_list(self):
         clist = self.connections_list
@@ -28,19 +33,19 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         for row_idx, collocation in enumerate(self.ctx.collocations):
             collocation_words = ";".join(map(lambda it: self.ctx.words[it], collocation.words))
             word_it = QtWidgets.QTableWidgetItem(collocation_words)
-            kind_it = QtWidgets.QTableWidgetItem(LING_KIND_STRINGS[collocation.kind.value])
+            kind_it = QtWidgets.QTableWidgetItem(ling.LING_KIND_STRINGS[collocation.kind.value])
             table.setItem(row_idx, 0, word_it)
             table.setItem(row_idx, 1, kind_it)
 
     def generate_view(self):
         self.generate_connections_list()
         self.generate_table()
-        if self.is_view_detailed:
-            # TODO(hl): Not implemented!!! If we display this as plain text, editing becomes a problem because we
-            #  would have to remap indices from cursor
-            html = self.ctx.get_funny_html_detailed()
-        else:
-            html = self.ctx.get_funny_html()
+        # if self.is_view_detailed:
+        # TODO(hl): Not implemented!!! If we display this as plain text, editing becomes a problem because we
+        #  would have to remap indices from cursor
+        # html = self.ctx.get_funny_html_detailed()
+        # else:
+        html = self.ctx.get_funny_html()
         self.text_view.setHtml(html)
 
     def init_ui(self):
@@ -51,7 +56,8 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         self.change_kind_btn.clicked.connect(self.do_change_kind)
         self.make_con_btn.clicked.connect(self.do_make_con)
         self.delete_con_btn.clicked.connect(self.do_delete_con)
-        for kind_name in LING_KIND_STRINGS:
+        self.save_btn.clicked.connect(self.do_save)
+        for kind_name in ling.LING_KIND_STRINGS:
             self.mark_kind_cb.addItem(kind_name)
 
         self.text_view.setReadOnly(True)
@@ -77,7 +83,7 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
 
     def get_selected_ling_kind(self):
         kind_idx = self.mark_kind_cb.currentIndex()
-        kind = LingKind(kind_idx)
+        kind = ling.LingKind(kind_idx)
         return kind
 
     def get_list_of_selected_col_table_rows(self):
@@ -126,17 +132,22 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         self.ctx.delete_connections(items_to_delete)
         self.generate_view()
 
+    def do_save(self):
+        logging.info("Saving sentence")
+        app.AppCtx.get().db.add_or_update_sentence_record(self.ctx)
+        logging.info("Sentence saved")
+
 
 def test_sentence_edit():
     import sys
 
     text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
-    text_ctx = TextCtx()
+    text_ctx = ling.TextCtx()
     text_ctx.init_for_text(text)
 
     sentence1 = text_ctx.start_sentence_edit(10)
-    sentence1.add_collocation([0, 1, 2], LingKind.OBJECT)
-    sentence1.mark_text_part(20, 40, LingKind.PREDICATE)
+    sentence1.add_collocation([0, 1, 2], ling.LingKind.OBJECT)
+    sentence1.mark_text_part(20, 40, ling.LingKind.PREDICATE)
 
     app = QtWidgets.QApplication(sys.argv)
     exec = SentenceEditWidget(sentence1)
