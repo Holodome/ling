@@ -89,3 +89,15 @@ CREATE TABLE IF NOT EXISTS Sentence_Derivative_Form_Junction (
     FOREIGN KEY(sentence_id) REFERENCES Sentence(id),
     FOREIGN KEY(deriv_id) REFERENCES Derivative_Form(id)
 );
+
+-- This is Text, but this word is reserved and makes little sense on its own
+CREATE TABLE IF NOT EXISTS Sentence_List (
+    id INTEGER PRIMARY KEY,
+    sentence_count INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS Sentence_List_Junction (
+    sent_id INTEGER NOT NULL,
+    list_id INTEGER NOT NULL,
+    idx     INTEGER NOT NULL
+);

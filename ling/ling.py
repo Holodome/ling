@@ -300,9 +300,6 @@ class TextCtx:
         return None
 
 
-WordID = NewType("WordID", int)
-
-
 @dataclasses.dataclass
 class DerivativeForm:
     form: str
@@ -319,13 +316,8 @@ class DerivativeForm:
             derivative_form = DerivativeForm(word, initial_form, part_of_speech)
 
             return derivative_form
-        return None
-
-    @staticmethod
-    def from_deserialized(form: str, init: str, part_of_speech: int):
-        part_of_speech = PartOfSpeech(part_of_speech)
-        deriv = DerivativeForm(form, init, part_of_speech)
-        return deriv
+        assert False
+        # return None
 
 
 def test_derivative_form():

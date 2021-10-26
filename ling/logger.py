@@ -4,6 +4,16 @@ import sys
 import time
 
 
+def excepthook_override(cls, exception, traceback):
+    import traceback as tb
+    import tempfile as tf
+    f = tf.TemporaryFile("w+")
+    tb.print_exception(cls, exception, traceback, file=f)
+    f.seek(os.SEEK_SET)
+    logging.error("Python expection: %s", f.read())
+    sys.__excepthook__(cls, exception, traceback)
+
+
 def init_logger():
     logs_folder = "logs"
     if not os.path.exists(logs_folder):
@@ -18,6 +28,7 @@ def init_logger():
                             logging.StreamHandler(sys.stdout)
                         ],
                         )
+    sys.excepthook = excepthook_override
     logging.info("Initialized logging to file '%s'", log_filepath)
     logging.getLogger("PyQt5.uic.uiparser").setLevel(logging.WARN)
     logging.getLogger("PyQt5.uic.properties").setLevel(logging.WARN)
