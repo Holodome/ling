@@ -33,7 +33,7 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         for row_idx, collocation in enumerate(self.ctx.collocations):
             collocation_words = ";".join(map(lambda it: self.ctx.words[it], collocation.words))
             word_it = QtWidgets.QTableWidgetItem(collocation_words)
-            kind_it = QtWidgets.QTableWidgetItem(ling.LING_KIND_STRINGS[collocation.kind.value])
+            kind_it = QtWidgets.QTableWidgetItem(app.get().db.get_semantic_group(collocation.semantic_group).name)
             table.setItem(row_idx, 0, word_it)
             table.setItem(row_idx, 1, kind_it)
 
@@ -57,7 +57,9 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         self.make_con_btn.clicked.connect(self.do_make_con)
         self.delete_con_btn.clicked.connect(self.do_delete_con)
         self.save_btn.clicked.connect(self.do_save)
-        for kind_name in ling.LING_KIND_STRINGS:
+        semantic_groups = app.get().db.get_all_semantic_groups()
+        semantic_group_names = [group.name for group in semantic_groups]
+        for kind_name in semantic_group_names:
             self.mark_kind_cb.addItem(kind_name)
 
         self.text_view.setReadOnly(True)

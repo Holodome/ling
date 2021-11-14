@@ -25,10 +25,11 @@ class CollocationTableWidget(QtWidgets.QMainWindow):
         self.table.setRowCount(len(colls))
         self.table.setColumnCount(len(self.COLUMN_NAMES))
         for idx, coll in enumerate(colls):
-            item = QtWidgets.QTableWidgetItem(ling.LING_KIND_STRINGS[coll.kind.value])
+            sem_group = app.get().db.get_semantic_group(coll.semantic_group_id)
+            item = QtWidgets.QTableWidgetItem(sem_group.name)
             self.table.setItem(idx, self.TYPE_COL, item)
-            words = [app.get().db.get_derivative_form(id_) for id_ in coll.words]
-            words = ", ".join(map(lambda it: it.form, words))
+            words = [app.get().db.get_word(id_) for id_ in coll.words]
+            words = ", ".join(map(lambda it: it.word, words))
             item = QtWidgets.QTableWidgetItem(words)
             self.table.setItem(idx, self.WORDS_COL, item)
         self.table.setHorizontalHeaderLabels(self.COLUMN_NAMES)
@@ -97,7 +98,7 @@ class CollocationTableWidget(QtWidgets.QMainWindow):
             selected = selected[0]
             selected_words = self.colls[selected].words
             # @TODO(hl): SPEED
-            words = app.get().db.get_all_derivative_forms()
+            words = app.get().db.get_all_words()
             words = list(filter(lambda it: it.id in selected_words, words))
 
             window = QtWidgets.QMainWindow(self)

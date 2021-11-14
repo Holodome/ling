@@ -1,57 +1,59 @@
-CREATE TABLE IF NOT EXISTS Initial_Form (
-    id INTEGER PRIMARY KEY,
-    form TEXT NOT NULL UNIQUE
+create table if not exists semantic_group (
+    id integer primary key,
+    name text not null
 );
 
-CREATE TABLE IF NOT EXISTS Derivative_Form (
+CREATE TABLE IF NOT EXISTS word (
     id INTEGER PRIMARY KEY,
-    initial_form_id INTEGER NOT NULL,
-    form TEXT NOT NULL,
+    word TEXT NOT NULL,
+
     part_of_speech int NOT NULL,
+    initial_form_id integer,
+    has_initial_form boolean not null, -- this is not to change every query comparing initial_form_id to null
     CONSTRAINT uniq UNIQUE (
-        initial_form_id,
-        form,
-        part_of_speech
-    ),
-    -- this table can be populated with all word parameters there can exist - like type of speech, sex etc.
-    FOREIGN KEY(initial_form_id) REFERENCES Initial_Form (id)
+        word,
+        part_of_speech,
+        initial_form_id
+    )
 );
 
-CREATE TABLE IF NOT EXISTS Collocation (
+CREATE TABLE IF NOT EXISTS collocation (
     id INTEGER PRIMARY KEY,
-    kind INTEGER NOT NULL -- ling kind
+    semantic_group_id INTEGER NOT NULL,
+
+    FOREIGN KEY(semantic_group_id) REFERENCES semantic_group(id)
 );
 
-CREATE TABLE IF NOT EXISTS Collocation_Junction (
+CREATE TABLE IF NOT EXISTS collocation_junction (
     idx INTEGER NOT NULL,
-    derivative_form_id INTEGER NOT NULL,
+    word_id INTEGER NOT NULL,
     collocation_id INTEGER NOT NULL,
     CONSTRAINT pk PRIMARY KEY (
         idx,
-        derivative_form_id,
+        word_id,
         collocation_id
     ),
 
-    FOREIGN KEY(derivative_form_id) REFERENCES Derivative_Form(id),
-    FOREIGN KEY(collocation_id) REFERENCES Collocation(id)
+    FOREIGN KEY(word_id) REFERENCES word(id),
+    FOREIGN KEY(collocation_id) REFERENCES collocation(id)
 );
 
-CREATE TABLE IF NOT EXISTS Conn ( -- connection, but it is reserved
+CREATE TABLE IF NOT EXISTS conn ( -- connection, but it is reserved
     id INTEGER PRIMARY KEY,
     predicate INTEGER NOT NULL,
     object INTEGER NOT NULL,
 
-    FOREIGN KEY(predicate) REFERENCES Collocation(id),
-    FOREIGN KEY(object) REFERENCES Collocation(id)
+    FOREIGN KEY(predicate) REFERENCES collocation(id),
+    FOREIGN KEY(object) REFERENCES collocation(id)
 );
 
-CREATE TABLE IF NOT EXISTS Sentence (
+CREATE TABLE IF NOT EXISTS sentence (
     id INTEGER PRIMARY KEY,
     contents TEXT NOT NULL UNIQUE,
     word_count INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS Sentence_Collocation_Junction (
+CREATE TABLE IF NOT EXISTS sentence_collocation_junction (
     sentence_id INTEGER NOT NULL,
     collocation_id INTEGER NOT NULL,
     CONSTRAINT pk PRIMARY KEY (
@@ -59,11 +61,11 @@ CREATE TABLE IF NOT EXISTS Sentence_Collocation_Junction (
        collocation_id
     ),
 
-    FOREIGN KEY(sentence_id) REFERENCES Sentence(id),
-    FOREIGN KEY(collocation_id) REFERENCES Collocation(id)
+    FOREIGN KEY(sentence_id) REFERENCES sentence(id),
+    FOREIGN KEY(collocation_id) REFERENCES collocation(id)
 );
 
-CREATE TABLE IF NOT EXISTS Sentence_Connection_Junction (
+CREATE TABLE IF NOT EXISTS sentence_connection_junction (
     sentence_id INTEGER NOT NULL,
     conn_id INTEGER NOT NULL,
     CONSTRAINT pk PRIMARY KEY (
@@ -71,33 +73,21 @@ CREATE TABLE IF NOT EXISTS Sentence_Connection_Junction (
        conn_id
     ),
 
-    FOREIGN KEY(sentence_id) REFERENCES Sentence(id),
-    FOREIGN KEY(conn_id) REFERENCES Conn(id)
+    FOREIGN KEY(sentence_id) REFERENCES sentence(id),
+    FOREIGN KEY(conn_id) REFERENCES conn(id)
 );
 
-CREATE TABLE IF NOT EXISTS Sentence_Derivative_Form_Junction (
+CREATE TABLE IF NOT EXISTS sentence_word_junction (
     sentence_id INTEGER NOT NULL,
-    deriv_id INTEGER NOT NULL,
+    word_id   INTEGER NOT NULL,
     idx      INTEGER NOT NULL,
     text_idx INTEGER NOT NULL, -- index in sentence text
     CONSTRAINT pk PRIMARY KEY (
         sentence_id,
-        deriv_id,
+        word_id,
         idx
     ),
 
-    FOREIGN KEY(sentence_id) REFERENCES Sentence(id),
-    FOREIGN KEY(deriv_id) REFERENCES Derivative_Form(id)
-);
-
--- This is Text, but this word is reserved and makes little sense on its own
-CREATE TABLE IF NOT EXISTS Sentence_List (
-    id INTEGER PRIMARY KEY,
-    sentence_count INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS Sentence_List_Junction (
-    sent_id INTEGER NOT NULL,
-    list_id INTEGER NOT NULL,
-    idx     INTEGER NOT NULL
+    FOREIGN KEY(sentence_id) REFERENCES sentence(id),
+    FOREIGN KEY(word_id) REFERENCES word(id)
 );

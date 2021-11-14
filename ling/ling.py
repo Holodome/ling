@@ -1,6 +1,7 @@
 import enum
 import dataclasses
-from typing import List, Tuple, NewType
+import typing
+from typing import List, Tuple, Union
 import pymorphy2
 
 
@@ -48,24 +49,7 @@ class PartOfSpeech(enum.Enum):
         return pymorphy_to_pos_dict.get(pm)
 
 
-class LingKind(enum.Enum):
-    ADJUNCT = 0x0
-    AGENT = 0x1
-    PREDICATE = 0x2
-    OBJECT = 0x3
-    INSTRUMENT = 0x4
-    # Новые типы идут ниже
-
-    NONE = ADJUNCT
-
-
-LING_KIND_STRINGS = [
-    "Адъюнкт",
-    "Агент",
-    "Предикат",
-    "Объект",
-    "Инструмент",
-]
+SemanticGroup = typing.NewType("SemanticGroup", int)
 
 COLOR_TABLE = [
     "red",
@@ -81,12 +65,6 @@ def get_color_for_int(v):
     return COLOR_TABLE[v % len(COLOR_TABLE)]
 
 
-def text_words_space_separated(text):
-    text_filtered = "".join(map(lambda it: it if it.isalpha() else " ", text))
-    text_filtered = " ".join(text_filtered.split())
-    return text_filtered
-
-
 def lines_intersect(a1, a2, b1, b2):
     return a2 >= b1 and b2 >= a1
 
@@ -94,7 +72,7 @@ def lines_intersect(a1, a2, b1, b2):
 @dataclasses.dataclass
 class Collocation:
     words: List[int]
-    kind: LingKind
+    semantic_group: SemanticGroup
 
     def remove_common_words(self, words: List[int]):
         self.words = list(filter(lambda it: it not in words, self.words))
@@ -140,13 +118,13 @@ class SentenceCtx:
         self.non_word_sentence_parts = non_word_sentence_parts
         self.non_word_sentence_part_starts = non_word_sentence_part_starts
 
-    def add_collocation(self, word_idxs: List[int], kind: LingKind):
+    def add_collocation(self, word_idxs: List[int], semantic_group: SemanticGroup):
         for collocation in self.collocations:
             collocation.remove_common_words(word_idxs)
         self.collocations = list(filter(lambda it: it.does_exists(), self.collocations))
 
         idx = self.get_new_collocation_idx()
-        coll = Collocation(word_idxs, kind)
+        coll = Collocation(word_idxs, semantic_group)
         self.collocations[idx] = coll
         return idx
 
@@ -158,9 +136,9 @@ class SentenceCtx:
             self.collocations.append(None)
         return result
 
-    def mark_words(self, words: List[int], kind: LingKind) -> int:
+    def mark_words(self, words: List[int], semantic_group: SemanticGroup) -> int:
         if words:
-            return self.add_collocation(words, kind)
+            return self.add_collocation(words, semantic_group)
         return -1
 
     def get_word_idxs_from_section(self, start_idx, end_idx) -> list:
@@ -172,21 +150,21 @@ class SentenceCtx:
                 word_idxs.append(word_idx)
         return word_idxs
 
-    def mark_text_part(self, start_idx: int, end_idx: int, kind: LingKind):
+    def mark_text_part(self, start_idx: int, end_idx: int, semantic_group: SemanticGroup):
         word_idxs = self.get_word_idxs_from_section(start_idx, end_idx)
-        self.mark_words(word_idxs, kind)
+        self.mark_words(word_idxs, semantic_group)
 
-    def get_word_kind(self, word_idx: int):
-        kind = LingKind.ADJUNCT
+    def get_word_semantic_group(self, word_idx: int):
+        semantic_group = 0
         for collocation in self.collocations:
             if word_idx in collocation.words:
-                kind = collocation.kind
-        return kind
+                semantic_group = collocation.semantic_group
+        return semantic_group
 
-    def mark_text_part_soft(self, start_idx: int, end_idx: int, kind: LingKind):
+    def mark_text_part_soft(self, start_idx: int, end_idx: int, semantic_group: SemanticGroup):
         word_idxs = self.get_word_idxs_from_section(start_idx, end_idx)
-        word_idxs = list(filter(lambda it: self.get_word_kind(it) == LingKind.ADJUNCT, word_idxs))
-        self.mark_words(word_idxs, kind)
+        word_idxs = list(filter(lambda it: self.get_word_semantic_group(it) == SemanticGroup.ADJUNCT, word_idxs))
+        self.mark_words(word_idxs, semantic_group)
 
     def get_corresponding_collocation_id(self, word_idx: int) -> int:
         result = -1
@@ -206,9 +184,9 @@ class SentenceCtx:
     def get_funny_html(self):
         html = ""
         for i, (non_word, word) in enumerate(zip(self.non_word_sentence_parts, self.words)):
-            word_kind = self.get_word_kind(i)
-            if word_kind != LingKind.ADJUNCT:
-                color = get_color_for_int(word_kind.value)
+            word_semantic_group = self.get_word_semantic_group(i)
+            if word_semantic_group != 0:
+                color = get_color_for_int(word_semantic_group)
                 word = f"<font color={color}>{word}</font>"
 
             html += non_word
@@ -230,15 +208,15 @@ class SentenceCtx:
     def join_collocations(self, collocation_idxs: List[int]):
         if len(collocation_idxs) > 1:
             collocations_to_join = list(map(lambda it: self.collocations[it], collocation_idxs))
-            # @HACK(hl): Probably want to warn when kinds are different
-            new_kind = collocations_to_join[0].kind
+            # @HACK(hl): Probably want to warn when semantic_groups are different
+            new_semantic_group = collocations_to_join[0].semantic_group
             new_words = []
             for col in collocations_to_join:
                 new_words.extend(col.words)
-            self.add_collocation(new_words, new_kind)
+            self.add_collocation(new_words, new_semantic_group)
 
-    def change_kind(self, collocation_idx: int, kind: LingKind):
-        self.collocations[collocation_idx].kind = kind
+    def change_semantic_group(self, collocation_idx: int, semantic_group: SemanticGroup):
+        self.collocations[collocation_idx].semantic_group = semantic_group
 
     def delete_connections(self, connections: List[int]):
         new_connections = []
@@ -301,9 +279,9 @@ class TextCtx:
 
 
 @dataclasses.dataclass
-class DerivativeForm:
-    form: str
-    initial_form: str
+class Word:
+    word: str
+    initial_form: Union[str, None]
     part_of_speech: PartOfSpeech
 
     @staticmethod
@@ -312,16 +290,19 @@ class DerivativeForm:
         if parse_results:
             form = parse_results[0]
             initial_form = form.normal_form
+            # NOTE(hl): Because we don't do deep morphological analysis it is enough for us that text is equals
+            # because the only other parameter we currently have is
+            initial_form = initial_form if initial_form != word else None
             part_of_speech = PartOfSpeech.from_pymorphy_str(form.tag.POS)
-            derivative_form = DerivativeForm(word, initial_form, part_of_speech)
+            word = Word(word, initial_form, part_of_speech)
 
-            return derivative_form
+            return word
         assert False
         # return None
 
 
 def test_derivative_form():
-    form = DerivativeForm.create("Летчик")
+    form = Word.create("Летчик")
     print(form)
 
 
@@ -331,8 +312,8 @@ def test_ctx():
     text_ctx.init_for_text(text)
 
     sentence1 = text_ctx.start_sentence_edit(10)
-    sentence1.add_collocation([0, 1, 2], LingKind.OBJECT)
-    sentence1.mark_text_part(20, 40, LingKind.PREDICATE)
+    sentence1.add_collocation([0, 1, 2], SemanticGroup.OBJECT)
+    sentence1.mark_text_part(20, 40, SemanticGroup.PREDICATE)
     html = sentence1.get_funny_html()
     print(html)
     pass

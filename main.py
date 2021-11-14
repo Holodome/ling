@@ -4,7 +4,6 @@ from ling.app_wdg import AppWidget
 from ling import logger
 
 
-
 def main():
     logger.init_logger()
 

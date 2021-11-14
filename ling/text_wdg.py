@@ -1,13 +1,13 @@
 from PyQt5 import QtWidgets, uic
 
-from ling import *
-from sent_wdg import SentenceEditWidget
+import ling.ling as ling
+import ling.sent_wdg as sent_wdg
 
 
 class TextEditWidget(QtWidgets.QMainWindow):
-    def __init__(self, ctx: TextCtx):
+    def __init__(self):
         super().__init__()
-        self.ctx = ctx
+        self.ctx = ling.TextCtx()
         self.per_sentence_widgets = {}
 
         uic.loadUi("uis/text_edit.ui", self)
@@ -40,21 +40,6 @@ class TextEditWidget(QtWidgets.QMainWindow):
                 widget.raise_()
             else:
                 sentence_ctx = self.ctx.sentence_ctxs[sentence_idx]
-                widget = SentenceEditWidget(sentence_ctx, self)
+                widget = sent_wdg.SentenceEditWidget(sentence_ctx, self)
                 self.per_sentence_widgets[sentence_idx] = widget
                 widget.show()
-
-
-def test_text_edit():
-    import sys
-
-    text_ctx = TextCtx()
-
-    app = QtWidgets.QApplication(sys.argv)
-    exec = TextEditWidget(text_ctx)
-    exec.show()
-    sys.exit(app.exec_())
-
-
-if __name__ == "__main__":
-    test_text_edit()

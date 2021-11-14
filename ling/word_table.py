@@ -16,7 +16,7 @@ class WordTableWidget(QtWidgets.QMainWindow):
     WORD_COL = 0x0
     POS_COL = 0x1
 
-    def __init__(self, words: List[db.DerivativeForm], *args):
+    def __init__(self, words: List[db.Word], *args):
         logging.info("Creating WordTableWidget")
 
         super().__init__(*args)
@@ -28,7 +28,7 @@ class WordTableWidget(QtWidgets.QMainWindow):
         self.table.setRowCount(len(words))
         self.table.setColumnCount(len(self.COLUMN_NAMES))
         for idx, word in enumerate(words):
-            item = QtWidgets.QTableWidgetItem(word.form)
+            item = QtWidgets.QTableWidgetItem(word.word)
             self.table.setItem(idx, self.WORD_COL, item)
             item = QtWidgets.QTableWidgetItem(str(word.part_of_speech))
             self.table.setItem(idx, self.POS_COL, item)
@@ -81,8 +81,7 @@ class WordTableWidget(QtWidgets.QMainWindow):
             window.resize(table.size())
             window.show()
 
-
-def init_ui(self):
+    def init_ui(self):
         self.coll_btn.clicked.connect(self.find_coll)
         self.sent_btn.clicked.connect(self.find_sent)
 

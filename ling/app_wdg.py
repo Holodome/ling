@@ -64,9 +64,9 @@ class AppWidget(QtWidgets.QMainWindow):
         coll_count = len(colls)
         logging.info("Coll count %d", coll_count)
         self.coll_count_wl.setText("%d" % coll_count)
-        words = app.get().db.get_all_derivative_forms()
+        words = app.get().db.get_all_words()
         word_count = len(words)
-        logging.info("Word count count %d", word_count)
+        logging.info("Word count %d", word_count)
         self.word_count_wl.setText("%d" % word_count)
 
     def generate_view(self):
@@ -78,6 +78,7 @@ class AppWidget(QtWidgets.QMainWindow):
         self.find_btn.clicked.connect(self.find)
         self.open_bd_btn.clicked.connect(self.open_bd)
         self.update_btn.clicked.connect(self.generate_view)
+        self.open_text_btn.clicked.connect(self.open_text)
 
     def get_entered_word(self):
         text = self.word_enter_le.text()
@@ -95,7 +96,7 @@ class AppWidget(QtWidgets.QMainWindow):
     def find(self):
         entered = self.get_entered_word()
         deriv_ids = app.get().db.get_deriv_form_id_by_word(entered)
-        words = [app.get().db.get_derivative_form(id_) for id_ in deriv_ids]
+        words = [app.get().db.get_word(id_) for id_ in deriv_ids]
         window = QtWidgets.QMainWindow(self)
         table = word_table.WordTableWidget(words)
         window.setCentralWidget(table)
@@ -121,6 +122,15 @@ class AppWidget(QtWidgets.QMainWindow):
         filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", filter="*.sqlite")[0]
         if filename:
             self.init_for_file(filename)
+
+    def open_text(self):
+        from ling.text_wdg import TextEditWidget
+
+        window = QtWidgets.QMainWindow(self)
+        table = TextEditWidget()
+        window.setCentralWidget(table)
+        window.resize(table.size())
+        window.show()
 
 
 def test_app_wdg():

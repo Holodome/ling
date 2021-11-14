@@ -32,9 +32,9 @@ class AppCtx:
 
         ling_collocations = []
         for db_col in db_collocations:
-            col_words = [self.db.get_derivative_form(word_id) for word_id in db_col.words]
-            word_idxs = [sent_ctx.words.index(word.form) for word in col_words]
-            ling_col = ling.Collocation(word_idxs, db_col.kind)
+            col_words = [self.db.get_word(word_id) for word_id in db_col.words]
+            word_idxs = [sent_ctx.words.index(word.word) for word in col_words]
+            ling_col = ling.Collocation(word_idxs, ling.SemanticGroup(db_col.semantic_group_id))
             ling_collocations.append(ling_col)
 
         sent_ctx.collocations = ling_collocations

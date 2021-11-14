@@ -86,7 +86,7 @@ class SentenceTableWidget(QtWidgets.QMainWindow):
         if selected:
             selected = selected[0]
             word_ids = self.sentences[selected].words
-            words = [app.get().db.get_derivative_form(id_) for id_ in word_ids]
+            words = [app.get().db.get_word(id_) for id_ in word_ids]
             window = QtWidgets.QMainWindow(self)
             table = WordTableWidget(words)
             window.setCentralWidget(table)

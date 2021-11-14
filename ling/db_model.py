@@ -36,32 +36,32 @@ def db_api(func):
     return wrapper
 
 
-InitialFormID = typing.NewType("InitialFormID", int)
-DerivativeFormID = typing.NewType("DerivativeFormID", int)
+SemanticGroupID = typing.NewType("SemanticGroupID", int)
+WordID = typing.NewType("WordID", int)
 CollocationID = typing.NewType("CollocationID", int)
 ConnID = typing.NewType("ConnID", int)
 SentenceID = typing.NewType("SentenceID", int)
 
 
 @dataclasses.dataclass
-class InitialForm:
-    id: InitialFormID
-    form: str
+class SemanticGroup:
+    id: SemanticGroupID
+    name: str
 
 
 @dataclasses.dataclass
-class DerivativeForm:
-    id: DerivativeFormID
-    initial_form_id: InitialFormID
-    form: str
+class Word:
+    id: WordID
+    initial_form_id: Union[WordID, None]
     part_of_speech: ling.PartOfSpeech
+    word: str
 
 
 @dataclasses.dataclass
 class Collocation:
     id: CollocationID
-    kind: ling.LingKind
-    words: List[DerivativeFormID]
+    semantic_group_id: SemanticGroupID
+    words: List[WordID]
 
 
 @dataclasses.dataclass
@@ -78,7 +78,16 @@ class Sentence:
     word_count: int
     collocations: List[CollocationID]
     connections: List[ConnID]
-    words: List[DerivativeFormID]
+    words: List[WordID]
+
+
+def abstract_sql_resource_get(cursor, query, id_):
+    if id_ is not None:
+        query += " where id = (?)"
+        values = list(cursor.execute(query, (id_,)))
+    else:
+        values = list(cursor.execute(query))
+    return values
 
 
 @dataclasses.dataclass
@@ -107,52 +116,51 @@ class DBCtx:
         self.cursor.executescript(tables_create_query)
         self.database.commit()
 
-    def get_derivative_form_internal(self, id_: Union[DerivativeFormID, None] = None) \
-            -> List[DerivativeForm]:
-        sql = "SELECT id, initial_form_id, form, part_of_speech FROM Derivative_Form"
-        if id is not None:
-            sql += " WHERE id = (?)"
-            values = list(self.cursor.execute(sql, (id_,)))
-        else:
-            values = list(self.cursor.execute(sql))
-        logging.info("Queried %d initial forms", len(values))
+    def get_semantic_group_internal(self, id_: Union[SemanticGroupID, None] = None) \
+        -> List[SemanticGroup]:
+        sql = """select id, name from semantic_group"""
+        values = abstract_sql_resource_get(self.cursor, sql, id_)
+        logging.info("Queried %d semantic groups")
         result = []
-        for id_, init_id, form, pos in values:
-            deriv = DerivativeForm(DerivativeFormID(id_),
-                                   InitialFormID(init_id),
-                                   form,
-                                   ling.PartOfSpeech(pos))
+        for id_, name in values:
+            v = SemanticGroup(id_, name)
+            result.append(v)
+        return result
+
+    def get_word_internal(self, id_: Union[WordID, None] = None) \
+            -> List[Word]:
+        sql = "select id, initial_form_id, word, part_of_speech, has_initial_form from word"
+        values = abstract_sql_resource_get(self.cursor, sql, id_)
+        logging.info("Queried %d derivative forms", len(values))
+        result = []
+        for id_, init_id, form, pos, has_init in values:
+            deriv = Word(WordID(id_),
+                         WordID(init_id),
+                         ling.PartOfSpeech(pos),
+                         form)
             result.append(deriv)
         return result
 
-    def get_collocations_internal(self, id_: Union[DerivativeFormID, None] = None) \
+    def get_collocations_internal(self, id_: Union[CollocationID, None] = None) \
             -> List[Collocation]:
-        sql = "SELECT id, kind FROM Collocation"
-        if id_ is not None:
-            sql += " WHERE id = (?)"
-            values = list(self.cursor.execute(sql, (id_,)))
-        else:
-            values = list(self.cursor.execute(sql))
+        sql = "select id, semantic_group_id from Collocation"
+        values = abstract_sql_resource_get(self.cursor, sql, id_)
         logging.info("Queried %d collocations", len(values))
         result = []
         for id_, kind in values:
-            sql = """SELECT derivative_form_id FROM Collocation_Junction
-                                     WHERE collocation_id = (?)"""
-            deriv_ids = unwrap(self.cursor.execute(sql, (id_,)))
+            sql = """select word_id from Collocation_Junction
+                                     where collocation_id = (?)"""
+            word_ids = unwrap(self.cursor.execute(sql, (id_,)))
             coll = Collocation(CollocationID(id_),
-                               ling.LingKind(kind),
-                               deriv_ids)
+                               SemanticGroupID(kind),
+                               word_ids)
             result.append(coll)
         return result
 
     def get_connections_internal(self, id_: Union[ConnID, None] = None) \
             -> List[Connection]:
-        sql = "SELECT id, predicate, object FROM Conn"
-        if id is not None:
-            sql += " WHERE id = (?)"
-            values = list(self.cursor.execute(sql, (id_, )))
-        else:
-            values = list(self.cursor.execute(sql))
+        sql = "select id, predicate, object from Conn"
+        values = abstract_sql_resource_get(self.cursor, sql, id_)
         logging.info("Queried %d connections", len(values))
         result = []
         for id_, pred_id, obj_id in values:
@@ -164,24 +172,20 @@ class DBCtx:
 
     def get_sentences_internal(self, id_: Union[SentenceID, None] = None) \
             -> List[Sentence]:
-        sql = "SELECT id, contents, word_count FROM Sentence"
-        if id_ is not None:
-            sql += " WHERE id = (?)"
-            values = list(self.cursor.execute(sql, (id_, )))
-        else:
-            values = list(self.cursor.execute(sql))
+        sql = "select id, contents, word_count from Sentence"
+        values = abstract_sql_resource_get(self.cursor, sql, id_)
         logging.info("Queried %d sentences", len(values))
 
         result = []
         for id_, contents, word_count in values:
-            sql = """SELECT conn_id FROM Sentence_Connection_Junction
-                                     WHERE sentence_id = (?)"""
+            sql = """select conn_id from Sentence_Connection_Junction
+                                     where sentence_id = (?)"""
             conn_ids = unwrap(self.cursor.execute(sql, (id_,)))
-            sql = """SELECT collocation_id FROM Sentence_Collocation_Junction
-                                 WHERE sentence_id = (?)"""
+            sql = """select collocation_id from Sentence_Collocation_Junction
+                                 where sentence_id = (?)"""
             coll_ids = unwrap(self.cursor.execute(sql, (id_,)))
-            sql = """SELECT idx, deriv_id FROM Sentence_Derivative_Form_Junction
-                             WHERE sentence_id = (?)"""
+            sql = """select idx, word_id from sentence_word_junction
+                             where sentence_id = (?)"""
             words_serialized = list(self.cursor.execute(sql, (id_,)))
             words = list(flatten_by_idx(sorted(words_serialized, key=lambda it: it[0]), 1))
             sent = Sentence(SentenceID(id_),
@@ -194,165 +198,78 @@ class DBCtx:
         return result
 
     @db_api
-    def get_all_initial_forms(self) -> List[InitialForm]:
-        logging.info("Querying all initial forms")
-        sql = "SELECT id, form FROM Initial_Form"
-        values = list(self.cursor.execute(sql))
-        logging.info("Queried %d initial forms", len(values))
-        result = []
-        for id_, form in values:
-            init = InitialForm(InitialFormID(id_), form)
-            result.append(init)
-        return result
+    def get_all_semantic_groups(self) -> List[SemanticGroup]:
+        logging.info("Querying all semantic groups")
+        return self.get_semantic_group_internal()
 
     @db_api
-    def get_all_derivative_forms(self) -> List[DerivativeForm]:
-        logging.info("Querying all derivative forms")
-        return self.get_derivative_form_internal()
-        # # NOTE(hl): not calling SELECT * to make changes easier
-        # sql = "SELECT id, initial_form_id, form, part_of_speech FROM Derivative_Form"
-        # values = list(self.cursor.execute(sql))
-        # logging.info("Queried %d derivative forms", len(values))
-        # result = []
-        # for id_, init_id, form, pos in values:
-        #     deriv = DerivativeForm(DerivativeFormID(id_),
-        #                            InitialFormID(init_id),
-        #                            form,
-        #                            ling.PartOfSpeech(pos))
-        #     result.append(deriv)
-        # return result
+    def get_all_words(self) -> List[Word]:
+        logging.info("Querying all words")
+        return self.get_word_internal()
 
     @db_api
     def get_all_collocations(self) -> List[Collocation]:
         logging.info("Querying all collocations")
         return self.get_collocations_internal()
-        # sql = "SELECT id, kind FROM Collocation"
-        # values = list(self.cursor.execute(sql))
-        # logging.info("Queried %d collocations", len(values))
-        # result = []
-        # for id_, kind in values:
-        #     sql = """SELECT derivative_form_id FROM Collocation_Junction
-        #                      WHERE collocation_id = (?)"""
-        #     deriv_ids = unwrap(self.cursor.execute(sql, (id_,)))
-        #     coll = Collocation(CollocationID(id_),
-        #                        ling.LingKind(kind),
-        #                        deriv_ids)
-        #     result.append(coll)
-        # return result
 
     @db_api
     def get_all_connections(self) -> List[Connection]:
         logging.info("Querying all connections")
         return self.get_connections_internal()
-        # sql = "SELECT id, predicate, object FROM Conn"
-        # values = list(self.cursor.execute(sql))
-        # logging.info("Queried %d connections", len(values))
-        # result = []
-        # for id_, pred_id, obj_id in values:
-        #     coll = Connection(ConnID(id_),
-        #                       CollocationID(pred_id),
-        #                       CollocationID(obj_id))
-        #     result.append(coll)
-        # return result
 
     @db_api
     def get_all_sentences(self) -> List[Sentence]:
         logging.info("Querying all sentences")
         return self.get_sentences_internal()
-        # sql = "SELECT id, contents, word_count FROM Sentence"
-        # values = list(self.cursor.execute(sql))
-        # logging.info("Queried %d sentences", len(values))
-        #
-        # result = []
-        # for id_, contents, word_count in values:
-        #     sql = """SELECT conn_id FROM Sentence_Connection_Junction
-        #                      WHERE sentence_id = (?)"""
-        #     conn_ids = unwrap(self.cursor.execute(sql, (id_,)))
-        #     sql = """SELECT collocation_id FROM Sentence_Collocation_Junction
-        #                  WHERE sentence_id = (?)"""
-        #     coll_ids = unwrap(self.cursor.execute(sql, (id_,)))
-        #     sql = """SELECT idx, deriv_id FROM Sentence_Derivative_Form_Junction
-        #              WHERE sentence_id = (?)"""
-        #     words_serialized = list(self.cursor.execute(sql, (id_,)))
-        #     words = list(flatten_by_idx(sorted(words_serialized, key=lambda it: it[0]), 1))
-        #     sent = Sentence(SentenceID(id_),
-        #                     contents,
-        #                     word_count,
-        #                     coll_ids,
-        #                     conn_ids,
-        #                     words)
-        #     result.append(sent)
-        # return result
 
     @db_api
-    def get_initial_form(self, id_: InitialFormID) -> InitialForm:
-        # @TODO(hl): SPEED
-        all_forms = self.get_all_initial_forms()
-        result = list(filter(lambda it: it.id == id_, all_forms))
+    def get_semantic_group(self, id_: SemanticGroupID) -> SemanticGroup:
+        logging.info("Querying semantic group %d " % id_)
+        result = self.get_semantic_group_internal(id_)
         return result[0] if result else None
 
     @db_api
-    def get_derivative_form(self, id_: DerivativeFormID) -> DerivativeForm:
-        logging.info("Querying derivative form %d" % id_)
-        result = self.get_derivative_form_internal(id_)
+    def get_word(self, id_: WordID) -> Word:
+        logging.info("Querying word %d" % id_)
+        result = self.get_word_internal(id_)
         return result[0] if result else None
-        # all_forms = self.get_all_derivative_forms()
-        # result = list(filter(lambda it: it.id == id_, all_forms))
-        # return result[0] if result else None
 
     @db_api
     def get_collocation(self, id_: CollocationID) -> Collocation:
         logging.info("Querying collocation %d" % id_)
         result = self.get_collocations_internal(id_)
         return result[0] if result else None
-        # all_forms = self.get_all_collocations()
-        # result = list(filter(lambda it: it.id == id_, all_forms))
-        # return result[0] if result else None
 
     @db_api
     def get_connection(self, id_: ConnID) -> Connection:
         logging.info("Querying connection %d" % id_)
         result = self.get_connections_internal(id_)
         return result[0] if result else None
-        # all_forms = self.get_all_connections()
-        # result = list(filter(lambda it: it.id == id_, all_forms))
-        # return result[0] if result else None
 
     @db_api
     def get_sentence(self, id_: SentenceID) -> Sentence:
         logging.info("Querying sentence %d" % id_)
         result = self.get_sentences_internal(id_)
         return result[0] if result else None
-        # all_forms = self.get_all_sentences()
-        # result = list(filter(lambda it: it.id == id_, all_forms))
-        # return result[0] if result else None
 
     @db_api
-    def get_initial_form_id_by_word(self, word: str) -> InitialFormID:
-        sql = """SELECT initial_form_id FROM Derivative_Form WHERE form = (?)"""
-        init_id = self.cursor.execute(sql, (word,))
-        init_id = flatten_by_idx(init_id, 0)
-        assert len(init_id) <= 1
-        return init_id[0] if init_id else None
-
-    @db_api
-    def get_deriv_form_id_by_word(self, word: str) -> List[DerivativeFormID]:
-        sql = """SELECT id FROM Derivative_Form WHERE form = (?)"""
+    def get_word_id_by_word(self, word: str) -> List[WordID]:
+        sql = """select id from word where word = (?)"""
         deriv = unwrap(self.cursor.execute(sql, (word,)))
-        deriv = list(map(DerivativeFormID, deriv))
+        deriv = list(map(WordID, deriv))
         return deriv
 
     @db_api
-    def get_deriv_form_ids_by_word_part(self, word_part: str) -> List[DerivativeFormID]:
-        sql = "SELECT id FROM Derivative_Form WHERE form LIKE (?)"
+    def get_word_ids_by_word_part(self, word_part: str) -> List[WordID]:
+        sql = "select id from word where form LIKE (?)"
         deriv = unwrap(self.cursor.execute(sql, (word_part,)))
-        deriv = list(map(DerivativeFormID, deriv))
+        deriv = list(map(WordID, deriv))
         return deriv
 
     @db_api
-    def get_collocation_ids_with_deriv_id(self, id_: DerivativeFormID) -> List[CollocationID]:
-        sql = """SELECT DISTINCT collocation_id FROM Collocation_Junction
-                 WHERE derivative_form_id = (?)"""
+    def get_collocation_ids_with_word_id(self, id_: WordID) -> List[CollocationID]:
+        sql = """select DISTINCT collocation_id from Collocation_Junction
+                 where word_id = (?)"""
         col_ids = self.cursor.execute(sql, (id_,))
         col_ids = unwrap(col_ids)
         col_ids = list(map(CollocationID, col_ids))
@@ -360,17 +277,17 @@ class DBCtx:
 
     @db_api
     def get_connection_ids_with_coll_id(self, id_: CollocationID) -> List[ConnID]:
-        sql = """SELECT id FROM Conn WHERE object = (?)"""
+        sql = """select id from Conn where object = (?)"""
         ids0 = list(self.cursor.execute(sql, (id_,)))
-        sql = """SELECT id FROM Collocation WHERE predicate = (?)"""
+        sql = """select id from Collocation where predicate = (?)"""
         ids1 = list(self.cursor.execute(sql, (id_,)))
         unique_ids = set(*ids0, *ids1)
         return list(unique_ids)
 
     @db_api
-    def get_connection_ids_with_deriv_id(self, id_: DerivativeFormID) -> List[ConnID]:
+    def get_connection_ids_with_word_id(self, id_: WordID) -> List[ConnID]:
         # @TODO(hl): Speed
-        collocation_ids = self.get_collocation_ids_with_deriv_id(id_)
+        collocation_ids = self.get_collocation_ids_with_word_id(id_)
         result = []
         for id_ in collocation_ids:
             coll_conns = self.get_connection_ids_with_coll_id(id_)
@@ -378,11 +295,11 @@ class DBCtx:
         return result
 
     @db_api
-    def get_sentences_id_by_deriv_id(self, id_: DerivativeFormID) -> List[SentenceID]:
+    def get_sentences_id_by_word_id(self, id_: WordID) -> List[SentenceID]:
         # @TODO(hl): Speed
-        coll_ids = self.get_collocation_ids_with_deriv_id(id_)
-        sql = """SELECT sentence_id FROM Sentence_Collocation_Junction 
-                 WHERE collocation_id = (?)"""
+        coll_ids = self.get_collocation_ids_with_word_id(id_)
+        sql = """select sentence_id from Sentence_Collocation_Junction 
+                 where collocation_id = (?)"""
         result = []
         for coll_id in coll_ids:
             coll_sent_ids = list(self.cursor.execute(sql, (coll_id,)))
@@ -390,98 +307,85 @@ class DBCtx:
         return result
 
     @db_api
+    def get_semantic_group_id_by_name(self, name: str) -> SemanticGroupID:
+        sql = """select id from semantic_group where name = (?)"""
+        groups = list(self.cursor.execute(sql, (name, )))
+        result = 0
+        if groups:
+            result = groups[0][0]
+        return result
+
+    @db_api
     def get_sentences_id_by_word(self, word: str) -> List[SentenceID]:
-        sql = """SELECT id FROM Sentence WHERE contents LIKE '%' || ? || '%' """
+        sql = """select id from Sentence where contents LIKE '%' || ? || '%' """
         sentences = self.cursor.execute(sql, (word,))
         sentences = unwrap(sentences)
         return sentences
 
     @db_api
-    def add_words_if_not_exist(self, words: List[str]):
-        derivative_forms = list(map(ling.DerivativeForm.create, words))
+    def get_collocations_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
+        # @TODO(hl): Speed
+        logging.info("get_collocations_of_sem_group %d" % sg)
+        colls = self.get_all_collocations()
+        result = list(filter(lambda it: it.semantic_group_id == sg, colls))
+        return result
 
-        initial_forms = list(map(lambda it: (it.initial_form,), derivative_forms))
-        sql = """INSERT OR IGNORE INTO Initial_Form (form) VALUES (?)"""
-        self.cursor.executemany(sql, initial_forms)
-
-        words_reformatted = []
-        for derivative_form in derivative_forms:
-            sql = """SELECT id FROM Initial_Form WHERE form = (?)"""
-            initial_form_id_it = self.cursor.execute(sql, (derivative_form.initial_form,))
-            initial_form_id = next(initial_form_id_it)[0]
-            form_sql_data = (derivative_form.form, initial_form_id, derivative_form.part_of_speech.value)
-            words_reformatted.append(form_sql_data)
-
-        sql = """INSERT OR IGNORE INTO Derivative_Form (form, initial_form_id, part_of_speech) VALUES (?, ?, ?)"""
-        self.cursor.executemany(sql, words_reformatted)
-        self.database.commit()
+    @db_api
+    def get_words_of_sem_group(self, sg: SemanticGroupID) -> List[WordID]:
+        # @TODO(hl): SPEED
+        coll_ids = self.get_collocations_of_sem_group(sg)
+        colls = [self.get_collocation(id_) for id_ in coll_ids]
+        result = []
+        for coll in colls:
+            result.extend(coll.words)
+        return result
 
     @db_api
     def add_or_update_sentence_record(self, sent: ling.SentenceCtx):
         logging.info("Updating sentence %s (wc %d)", sent.text, len(sent.words))
-
-        # self.add_words_if_not_exist(sent.words)
         #
         # add sentence record
         #
         sql = "INSERT OR IGNORE INTO Sentence (contents, word_count) VALUES (?, ?)"
         self.cursor.execute(sql, (sent.text, len(sent.words)))
 
-        sql = "SELECT id from Sentence WHERE contents = (?)"
+        sql = "select id from Sentence where contents = (?)"
         sentence_id = self.cursor.execute(sql, (sent.text,))
         sentence_id = next(sentence_id)
 
         #
         # first of all, delete all previous entries about sentence
         #
-        sql = """DELETE FROM Collocation_Junction WHERE collocation_id IN (
-                    SELECT collocation_id FROM Sentence_Collocation_Junction 
-                    WHERE sentence_id = (?)
+        sql = """DELETE from Collocation_Junction where collocation_id IN (
+                    select collocation_id from Sentence_Collocation_Junction 
+                    where sentence_id = (?)
                  )"""
         self.cursor.execute(sql, sentence_id)
-        sql = """DELETE FROM Collocation WHERE id IN (
-                    SELECT collocation_id FROM Sentence_Collocation_Junction 
-                    WHERE sentence_id = (?)
+        sql = """DELETE from Collocation where id IN (
+                    select collocation_id from Sentence_Collocation_Junction 
+                    where sentence_id = (?)
                  )"""
         self.cursor.execute(sql, sentence_id)
-        sql = """DELETE FROM Sentence_Collocation_Junction WHERE sentence_id = (?)"""
+        sql = """DELETE from Sentence_Collocation_Junction where sentence_id = (?)"""
         self.cursor.execute(sql, sentence_id)
 
-        sql = """DELETE FROM Conn WHERE id IN (
-                 SELECT conn_id FROM Sentence_Connection_Junction 
-                    WHERE sentence_id = (?)
+        sql = """DELETE from Conn where id IN (
+                 select conn_id from Sentence_Connection_Junction 
+                    where sentence_id = (?)
                  )"""
         self.cursor.execute(sql, sentence_id)
-        sql = """DELETE FROM Sentence_Connection_Junction WHERE sentence_id = (?)"""
+        sql = """DELETE from Sentence_Connection_Junction where sentence_id = (?)"""
         self.cursor.execute(sql, sentence_id)
-        sql = """DELETE FROM Sentence_Derivative_Form_Junction WHERE sentence_id = (?)"""
+        sql = """DELETE from sentence_word_junction where sentence_id = (?)"""
         self.cursor.execute(sql, sentence_id)
         #
         # now start populating database again
         #
         logging.info("Inserting %d words" % len(sent.words))
         for idx, (word, start_idx) in enumerate(zip(sent.words, sent.word_start_idxs)):
-            deriv_form = ling.DerivativeForm.create(word)
-
-            sql = """INSERT OR IGNORE INTO Initial_Form (form) VALUES (?)"""
-            self.cursor.execute(sql, (deriv_form.initial_form,))
-
-            sql = """SELECT id FROM Initial_Form WHERE form = (?)"""
-            initial_form_id_it = self.cursor.execute(sql, (deriv_form.initial_form,))
-            initial_form_id = next(initial_form_id_it)[0]
-            form_sql_data = (deriv_form.form, initial_form_id, deriv_form.part_of_speech.value)
-
-            sql = """INSERT OR IGNORE INTO Derivative_Form (form, initial_form_id, part_of_speech) VALUES (?, ?, ?)"""
-            self.cursor.execute(sql, form_sql_data)
-
-            # @TODO(hl): Some kind of hash for this query
-            sql = """SELECT id FROM Derivative_Form
-                     WHERE form = (?) AND initial_form_id = (?) and part_of_speech = (?)"""
-            deriv_id = self.cursor.execute(sql, form_sql_data)
-            deriv_id = next(deriv_id)[0]
-
-            junction_data = (sentence_id[0], deriv_id, idx, start_idx)
-            sql = """INSERT INTO Sentence_Derivative_Form_Junction (sentence_id, deriv_id, idx, text_idx)
+            word_id = self.get_or_insert_word(word)
+            junction_data = (sentence_id[0], word_id, idx, start_idx)
+            sql = """INSERT INTO sentence_word_junction (sentence_id, word_id, idx, text_idx)
                      VALUES (?, ?, ?, ?)"""
             self.cursor.execute(sql, junction_data)
 
@@ -489,18 +393,18 @@ class DBCtx:
 
         collocation_ids = []
         for idx, collocation in enumerate(sent.collocations):
-            sql = """INSERT INTO Collocation (kind) VALUES (?)"""
-            self.cursor.execute(sql, (collocation.kind.value,))
-            sql = """SELECT id FROM Collocation
-                     WHERE rowid = ( SELECT last_insert_rowid() )"""
+            sql = """INSERT INTO Collocation (semantic_group_id) VALUES (?)"""
+            self.cursor.execute(sql, (collocation.semantic_group,))
+            sql = """select id from Collocation
+                     where rowid = ( select last_insert_rowid() )"""
             collocation_id = self.cursor.execute(sql)
             collocation_id = next(collocation_id)[0]
             collocation_ids.append(collocation_id)
 
-            sql = """INSERT INTO Collocation_Junction (derivative_form_id, collocation_id, idx)
-                     SELECT Derivative_Form.id, (?), (?)
-                     FROM Derivative_Form
-                     WHERE Derivative_Form.form = (?)
+            sql = """INSERT INTO collocation_junction (word_id, collocation_id, idx)
+                     select word.id, (?), (?)
+                     from word
+                     where word.word = (?)
                      """
             words = list(map(lambda it: (collocation_id, it[0], sent.words[it[1]]), enumerate(collocation.words)))
             self.cursor.executemany(sql, words)
@@ -516,8 +420,8 @@ class DBCtx:
                      """
             conn_collocation_ids = (collocation_ids[connection[0]], collocation_ids[connection[1]])
             self.cursor.execute(sql, conn_collocation_ids)
-            sql = """SELECT id FROM Conn
-                     WHERE rowid = ( SELECT last_insert_rowid() )"""
+            sql = """select id from Conn
+                     where rowid = ( select last_insert_rowid() )"""
             conn_id = self.cursor.execute(sql)
             conn_id = next(conn_id)[0]
             sql = """INSERT INTO Sentence_Connection_Junction (sentence_id, conn_id)
@@ -526,24 +430,62 @@ class DBCtx:
 
         self.database.commit()
 
+    @db_api
+    def get_or_insert_word(self, word: str) -> WordID:
+        word = ling.Word.create(word)
+
+        if word.initial_form is not None:
+            initial_form_id = self.get_or_insert_word(word.initial_form)
+        else:
+            initial_form_id = None
+        form_sql_data = (word.word, word.part_of_speech.value, initial_form_id, initial_form_id is not None)
+        sql = """INSERT OR IGNORE INTO word 
+                 (word, part_of_speech, initial_form_id, has_initial_form) 
+                 VALUES (?, ?, ?, ?)"""
+        self.cursor.execute(sql, form_sql_data)
+
+        sql = """select id from word
+                 where word = (?) and part_of_speech = (?) and (initial_form_id = (?) or not has_initial_form) """
+        word_id = self.cursor.execute(sql, form_sql_data[:3])
+        word_id = next(word_id)[0]
+        return word_id
+
+    @db_api
+    def add_semantic_group(self, name: str) -> SemanticGroupID:
+        sg = self.get_semantic_group_id_by_name(name)
+        if sg:
+            logging.warning("Semantic group %s is already defined (id %d)", name, sg)
+            return sg
+
+        sql = """insert into semantic_group (name) values (?)"""
+        self.cursor.execute(sql, (name, ))
+        sg = self.get_semantic_group_id_by_name(name)
+        assert sg is not None
+        return sg
+
 
 def test_db_ctx():
-    text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
-    text_ctx = ling.TextCtx()
-    text_ctx.init_for_text(text)
-
-    sentence1 = text_ctx.start_sentence_edit(10)
-    sentence1.add_collocation([0, 1, 2], ling.LingKind.OBJECT)
-    sentence1.mark_text_part(20, 40, ling.LingKind.PREDICATE)
-    sentence1.make_connection(0, 1)
-
-    sentence2 = text_ctx.start_sentence_edit(80)
 
     db_name = "test.sqlite"
 
     try:
         ctx = DBCtx()
         ctx.create_or_open(db_name)
+
+        predicate = ctx.add_semantic_group("Предикат")
+        object_ = ctx.add_semantic_group("Объект")
+
+        text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
+        text_ctx = ling.TextCtx()
+        text_ctx.init_for_text(text)
+
+        sentence1 = text_ctx.start_sentence_edit(10)
+        sentence1.add_collocation([0, 1, 2], object_)
+        sentence1.mark_text_part(20, 40, predicate)
+        sentence1.make_connection(0, 1)
+
+        sentence2 = text_ctx.start_sentence_edit(80)
+
         ctx.add_or_update_sentence_record(sentence1)
         ctx.add_or_update_sentence_record(sentence2)
 
@@ -557,11 +499,11 @@ def test_db_ctx():
         # print('\n'.join(map(str, a)))
         #
         # print("--Deriv of", word)
-        # a = ctx.get_deriv_form(word)
+        # a = ctx.get_word(word)
         # print('\n'.join(map(str, a)))
         #
         # print("--All derivs")
-        # a = ctx.get_deriv_form()
+        # a = ctx.get_word()
         # print('\n'.join(map(str, a)))
         #
         # print("--All collocations")
