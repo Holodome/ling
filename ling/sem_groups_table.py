@@ -44,7 +44,7 @@ class SemanticGroupsWidget(QtWidgets.QMainWindow):
             item = QtWidgets.QTableWidgetItem(str(len(colls)))
             self.table.setItem(idx, self.COLLS_COL, item)
             # @TODO(hl): SPEED
-            words = app.get().db.get_words_of_sem_group(sg.id)
+            words = app.get().get_words_of_sem_group(sg.id)
             item = QtWidgets.QTableWidgetItem(str(len(words)))
             self.table.setItem(idx, self.WORDS_COL, item)
         self.table.resizeColumnsToContents()
@@ -83,13 +83,8 @@ class SemanticGroupsWidget(QtWidgets.QMainWindow):
             row = rows[0]
             id_ = self.all_sg[row].id
             coll_ids = app.get().db.get_collocations_of_sem_group(id_)
-            colls = [app.get().db.get_collocation(id_) for id_ in coll_ids]
-
-            window = QtWidgets.QMainWindow(self)
-            table = CollocationTableWidget(colls)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
+            colls = app.get().get_collocations_from_ids(coll_ids)
+            qt_helper.create_widget_window(CollocationTableWidget(colls), self)
 
     def show_words(self):
         from ling.word_table import WordTableWidget
@@ -97,14 +92,9 @@ class SemanticGroupsWidget(QtWidgets.QMainWindow):
         if rows:
             row = rows[0]
             id_ = self.all_sg[row].id
-            word_ids = app.get().db.get_words_of_sem_group(id_)
-            words = [app.get().db.get_word(id_) for id_ in word_ids]
-            
-            window = QtWidgets.QMainWindow(self)
-            table = WordTableWidget(words)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
+            word_ids = app.get().get_words_of_sem_group(id_)
+            words = app.get().get_words_from_ids(word_ids)
+            qt_helper.create_widget_window(WordTableWidget(words), self)
 
     
     

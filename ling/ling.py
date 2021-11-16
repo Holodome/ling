@@ -93,7 +93,8 @@ class SentenceCtx:
     collocation_id_freelist: [int] = dataclasses.field(default_factory=list)
     connections: List[Tuple[int, int]] = dataclasses.field(default_factory=list)
 
-    def init_from_text(self, text):
+    def init_from_text(self, text: str):
+        text = text.lower()
         non_word_sentence_parts = []
         non_word_sentence_part_starts = []
         words = []
@@ -119,10 +120,8 @@ class SentenceCtx:
         self.non_word_sentence_part_starts = non_word_sentence_part_starts
 
     def add_collocation(self, word_idxs: List[int], semantic_group: SemanticGroup):
-        for collocation in self.collocations:
-            collocation.remove_common_words(word_idxs)
-        self.collocations = list(filter(lambda it: it.does_exists(), self.collocations))
-
+        assert semantic_group != 0
+        # Add new entry
         idx = self.get_new_collocation_idx()
         coll = Collocation(word_idxs, semantic_group)
         self.collocations[idx] = coll
@@ -163,7 +162,7 @@ class SentenceCtx:
 
     def mark_text_part_soft(self, start_idx: int, end_idx: int, semantic_group: SemanticGroup):
         word_idxs = self.get_word_idxs_from_section(start_idx, end_idx)
-        word_idxs = list(filter(lambda it: self.get_word_semantic_group(it) == SemanticGroup.ADJUNCT, word_idxs))
+        word_idxs = list(filter(lambda it: self.get_word_semantic_group(it) == 0, word_idxs))
         self.mark_words(word_idxs, semantic_group)
 
     def get_corresponding_collocation_id(self, word_idx: int) -> int:
@@ -204,8 +203,17 @@ class SentenceCtx:
             if collocation_idx not in collocation_idxs:
                 new_collocations.append(collocation)
         self.collocations = new_collocations
+        # Remove connections with deleted collocations
+        new_connections = []
+        for connection in self.connections:
+            if connection[0] in collocation_idxs or connection[1] in collocation_idxs:
+                ...
+            else:
+                new_connections.append(connection)
+        self.connections = new_connections
 
     def join_collocations(self, collocation_idxs: List[int]):
+        print(collocation_idxs)
         if len(collocation_idxs) > 1:
             collocations_to_join = list(map(lambda it: self.collocations[it], collocation_idxs))
             # @HACK(hl): Probably want to warn when semantic_groups are different
@@ -213,7 +221,21 @@ class SentenceCtx:
             new_words = []
             for col in collocations_to_join:
                 new_words.extend(col.words)
-            self.add_collocation(new_words, new_semantic_group)
+            new_idx = self.add_collocation(new_words, new_semantic_group)
+            print(new_idx)
+            # add connections
+            new_connections = []
+            for connection in self.connections:
+                if not (connection[0] in collocation_idxs and connection[1] in collocation_idxs):
+                    if connection[0] in collocation_idxs:
+                        new_conn = (new_idx, connection[1])
+                    elif connection[1] in collocation_idxs:
+                        new_conn = (connection[0], new_idx)
+                    else:
+                        new_conn = connection
+                    new_connections.append(new_conn)
+            self.connections = new_connections
+            self.remove_collocations(collocation_idxs)
 
     def change_semantic_group(self, collocation_idx: int, semantic_group: SemanticGroup):
         self.collocations[collocation_idx].semantic_group = semantic_group
@@ -298,27 +320,4 @@ class Word:
 
             return word
         assert False
-        # return None
 
-
-def test_derivative_form():
-    form = Word.create("Летчик")
-    print(form)
-
-
-def test_ctx():
-    text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
-    text_ctx = TextCtx()
-    text_ctx.init_for_text(text)
-
-    sentence1 = text_ctx.start_sentence_edit(10)
-    sentence1.add_collocation([0, 1, 2], SemanticGroup.OBJECT)
-    sentence1.mark_text_part(20, 40, SemanticGroup.PREDICATE)
-    html = sentence1.get_funny_html()
-    print(html)
-    pass
-
-
-if __name__ == "__main__":
-    test_derivative_form()
-    # test_ctx()

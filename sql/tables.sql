@@ -20,6 +20,12 @@ CREATE TABLE IF NOT EXISTS word (
 CREATE TABLE IF NOT EXISTS collocation (
     id INTEGER PRIMARY KEY,
     semantic_group_id INTEGER NOT NULL,
+    word_hash INTEGER NOT NULL, -- see db_model.py
+
+    constraint uniq unique (
+        semantic_group_id,
+        word_hash
+    ),
 
     FOREIGN KEY(semantic_group_id) REFERENCES semantic_group(id)
 );
@@ -42,6 +48,11 @@ CREATE TABLE IF NOT EXISTS conn ( -- connection, but it is reserved
     id INTEGER PRIMARY KEY,
     predicate INTEGER NOT NULL,
     object INTEGER NOT NULL,
+
+    CONSTRAINT uniq UNIQUE (
+        predicate,
+        object
+    ),
 
     FOREIGN KEY(predicate) REFERENCES collocation(id),
     FOREIGN KEY(object) REFERENCES collocation(id)

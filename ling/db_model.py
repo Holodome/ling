@@ -62,6 +62,7 @@ class Collocation:
     id: CollocationID
     semantic_group_id: SemanticGroupID
     words: List[WordID]
+    words_hash: int
 
 
 @dataclasses.dataclass
@@ -143,11 +144,11 @@ class DBCtx:
 
     def get_collocations_internal(self, id_: Union[CollocationID, None] = None) \
             -> List[Collocation]:
-        sql = "select id, semantic_group_id from Collocation"
+        sql = "select id, semantic_group_id, word_hash from Collocation"
         values = abstract_sql_resource_get(self.cursor, sql, id_)
         logging.info("Queried %d collocations", len(values))
         result = []
-        for id_, kind in values:
+        for id_, kind, word_hash in values:
             sql = """select word_id, idx from collocation_junction
                      where collocation_id = (?)"""
             word_ids = list(self.cursor.execute(sql, (id_,)))
@@ -155,7 +156,8 @@ class DBCtx:
             word_ids = [it[0] for it in word_ids]
             coll = Collocation(CollocationID(id_),
                                SemanticGroupID(kind),
-                               word_ids)
+                               word_ids,
+                               word_hash)
             result.append(coll)
         return result
 
@@ -228,30 +230,48 @@ class DBCtx:
     def get_semantic_group(self, id_: SemanticGroupID) -> SemanticGroup:
         logging.info("Querying semantic group %d " % id_)
         result = self.get_semantic_group_internal(id_)
+        if not result:
+            logging.error("Failed to query semantic group %d" % id_)
         return result[0] if result else None
 
     @db_api
     def get_word(self, id_: WordID) -> Word:
         logging.info("Querying word %d" % id_)
         result = self.get_word_internal(id_)
+        if not result:
+            logging.error("Failed to query word %d" % id_)
+        else:
+            logging.debug(result)
         return result[0] if result else None
 
     @db_api
     def get_collocation(self, id_: CollocationID) -> Collocation:
         logging.info("Querying collocation %d" % id_)
         result = self.get_collocations_internal(id_)
+        if not result:
+            logging.error("Failed to query collocation %d" % id_)
+        else:
+            logging.debug(result)
         return result[0] if result else None
 
     @db_api
     def get_connection(self, id_: ConnID) -> Connection:
         logging.info("Querying connection %d" % id_)
         result = self.get_connections_internal(id_)
+        if not result:
+            logging.error("Failed to query connection %d" % id_)
+        else:
+            logging.debug(result)
         return result[0] if result else None
 
     @db_api
     def get_sentence(self, id_: SentenceID) -> Sentence:
         logging.info("Querying sentence %d" % id_)
         result = self.get_sentences_internal(id_)
+        if not result:
+            logging.error("Failed to query sentence %d" % id_)
+        else:
+            logging.debug(result)
         return result[0] if result else None
 
     @db_api
@@ -329,19 +349,8 @@ class DBCtx:
         # @TODO(hl): Speed
         logging.info("get_collocations_of_sem_group %d" % sg)
         colls = self.get_all_collocations()
-        result = [it.semantic_group_id for it in colls if it.semantic_group_id == sg]
-        return result
-
-    @db_api
-    def get_words_of_sem_group(self, sg: SemanticGroupID) -> List[WordID]:
-        # @TODO(hl): SPEED
-        coll_ids = self.get_collocations_of_sem_group(sg)
-        colls = [self.get_collocation(id_) for id_ in coll_ids]
-        print(colls)
-        result = []
-        for coll in colls:
-            result.extend(coll.words)
-        return result
+        result = [it.id for it in colls if it.semantic_group_id == sg]
+        return list(set(result))
 
     @db_api
     def add_or_update_sentence_record(self, sent: ling.SentenceCtx):
@@ -349,7 +358,7 @@ class DBCtx:
         #
         # add sentence record
         #
-        sql = "inSERT OR IGNORE inTO Sentence (contents, word_count) VALUES (?, ?)"
+        sql = "insert OR IGNORE into Sentence (contents, word_count) values (?, ?)"
         self.cursor.execute(sql, (sent.text, len(sent.words)))
 
         sql = "select id from Sentence where contents = (?)"
@@ -359,24 +368,24 @@ class DBCtx:
         #
         # first of all, delete all previous entries about sentence
         #
-        sql = """delete from Collocation_Junction where collocation_id in (
-                    select collocation_id from Sentence_Collocation_Junction 
-                    where sentence_id = (?)
-                 )"""
-        self.cursor.execute(sql, sentence_id)
-        sql = """delete from Collocation where id in (
-                    select collocation_id from Sentence_Collocation_Junction 
-                    where sentence_id = (?)
-                 )"""
-        self.cursor.execute(sql, sentence_id)
+        # sql = """delete from Collocation_Junction where collocation_id in (
+        #             select collocation_id from Sentence_Collocation_Junction
+        #             where sentence_id = (?)
+        #          )"""
+        # self.cursor.execute(sql, sentence_id)
+        # sql = """delete from Collocation where id in (
+        #             select collocation_id from Sentence_Collocation_Junction
+        #             where sentence_id = (?)
+        #          )"""
+        # self.cursor.execute(sql, sentence_id)
         sql = """delete from Sentence_Collocation_Junction where sentence_id = (?)"""
         self.cursor.execute(sql, sentence_id)
 
-        sql = """delete from Conn where id in (
-                 select conn_id from Sentence_Connection_Junction 
-                    where sentence_id = (?)
-                 )"""
-        self.cursor.execute(sql, sentence_id)
+        # sql = """delete from Conn where id in (
+        #          select conn_id from Sentence_Connection_Junction
+        #             where sentence_id = (?)
+        #          )"""
+        # self.cursor.execute(sql, sentence_id)
         sql = """delete from Sentence_Connection_Junction where sentence_id = (?)"""
         self.cursor.execute(sql, sentence_id)
         sql = """delete from sentence_word_junction where sentence_id = (?)"""
@@ -385,56 +394,77 @@ class DBCtx:
         # now start populating database again
         #
         logging.info("Inserting %d words" % len(sent.words))
+        word_ids = []
         for idx, (word, start_idx) in enumerate(zip(sent.words, sent.word_start_idxs)):
             word_id = self.get_or_insert_word(word)
             junction_data = (sentence_id[0], word_id, idx, start_idx)
-            sql = """inSERT inTO sentence_word_junction (sentence_id, word_id, idx, text_idx)
-                     VALUES (?, ?, ?, ?)"""
+            sql = """insert into sentence_word_junction (sentence_id, word_id, idx, text_idx)
+                     values (?, ?, ?, ?)"""
             self.cursor.execute(sql, junction_data)
+            word_ids.append(word_id)
 
         logging.info("Inserting %d collocations" % len(sent.collocations))
 
         collocation_ids = []
         for idx, collocation in enumerate(sent.collocations):
-            sql = """inSERT inTO collocation (semantic_group_id) VALUES (?)"""
-            self.cursor.execute(sql, (collocation.semantic_group,))
-            sql = """select id from collocation
-                     where rowid = ( select last_insert_rowid() )"""
-            collocation_id = self.cursor.execute(sql)
-            collocation_id = next(collocation_id)[0]
-            collocation_ids.append(collocation_id)
+            from zlib import crc32
+            # @TODO(hl): Better hash function
+            collocation_words = list(map(lambda it: sent.words[it], collocation.words))
+            collocation_words.sort()
+            words_hash = crc32(bytes(str(collocation_words), "utf8"))
+            print(collocation_words, words_hash)
 
-            sql = """inSERT inTO collocation_junction (word_id, collocation_id, idx)
-                     select word.id, (?), (?)
-                     from word
-                     where word.word = (?)
-                     """
-            words = list(map(lambda it: (collocation_id, it[0], sent.words[it[1]]), enumerate(collocation.words)))
-            self.cursor.executemany(sql, words)
+            # First of all, try to find collocation with same words
+            # @HACK(hl): Because it is complicated and slow to do checks for all junctions, we use word hash here
+            #  This way we can directly compare it
+            sql = """select id from collocation where word_hash = (?)"""
+            collocation_id = unwrap(self.cursor.execute(sql, (words_hash, )))
+            if not collocation_id:
+                logging.info("Inserting collocation %d %s" % (collocation.semantic_group, str(collocation_words)))
+                sql = """insert into collocation (semantic_group_id, word_hash) values (?, ?)"""
+                self.cursor.execute(sql, (collocation.semantic_group, words_hash))
+                sql = """select id from collocation
+                         where rowid = ( select last_insert_rowid() )"""
+                collocation_id = self.cursor.execute(sql)
+                collocation_id = next(collocation_id)[0]
 
-            sql = """inSERT inTO Sentence_Collocation_Junction (sentence_id, collocation_id)
-                     VALUES (?, ?)"""
+                sql = """insert into collocation_junction (word_id, collocation_id, idx)
+                         values (?, ?, ?)
+                         """
+                words = list(map(lambda it: (word_ids[it[1]], collocation_id, it[0]), enumerate(collocation.words)))
+                self.cursor.executemany(sql, words)
+            else:
+                logging.info("Collocation %d %s is already present " % (collocation.semantic_group, str(collocation_words)))
+                collocation_id = collocation_id[0]
+
+            sql = """insert into Sentence_Collocation_Junction (sentence_id, collocation_id)
+                     values (?, ?)"""
             self.cursor.execute(sql, (sentence_id[0], collocation_id))
+            collocation_ids.append(collocation_id)
 
         logging.info("Inserting %d connections" % len(sent.connections))
         for connection in sent.connections:
-            sql = """inSERT inTO Conn (predicate, object) 
-                     VALUES(?, ?)
+            print(connection, collocation_ids, sent.connections, sent.collocations)
+            sql = """insert or ignore into Conn (predicate, object) 
+                     values(?, ?)
                      """
             conn_collocation_ids = (collocation_ids[connection[0]], collocation_ids[connection[1]])
             self.cursor.execute(sql, conn_collocation_ids)
+
+            # @TODO(hl): Uniquiness
             sql = """select id from Conn
                      where rowid = ( select last_insert_rowid() )"""
             conn_id = self.cursor.execute(sql)
             conn_id = next(conn_id)[0]
-            sql = """inSERT inTO Sentence_Connection_Junction (sentence_id, conn_id)
-                     VALUES(?, ?)"""
+            sql = """insert into Sentence_Connection_Junction (sentence_id, conn_id)
+                     values(?, ?)"""
             self.cursor.execute(sql, (sentence_id[0], conn_id))
 
         self.database.commit()
 
     @db_api
     def get_or_insert_word(self, word: str) -> WordID:
+        word = word.lower()
         word = ling.Word.create(word)
 
         if word.initial_form is not None:
@@ -442,15 +472,16 @@ class DBCtx:
         else:
             initial_form_id = None
         form_sql_data = (word.word, word.part_of_speech.value, initial_form_id, initial_form_id is not None)
-        sql = """inSERT OR IGNORE inTO word 
+        sql = """insert OR IGNORE into word 
                  (word, part_of_speech, initial_form_id, has_initial_form) 
-                 VALUES (?, ?, ?, ?)"""
+                 values (?, ?, ?, ?)"""
         self.cursor.execute(sql, form_sql_data)
 
         sql = """select id from word
                  where word = (?) and part_of_speech = (?) and (initial_form_id = (?) or not has_initial_form) """
         word_id = self.cursor.execute(sql, form_sql_data[:3])
         word_id = next(word_id)[0]
+        logging.info("Inserted word %s" % word)
         return word_id
 
     @db_api
@@ -463,7 +494,7 @@ class DBCtx:
         sql = """insert into semantic_group (name) values (?)"""
         self.cursor.execute(sql, (name, ))
         sg = self.get_semantic_group_id_by_name(name)
-        assert sg is not None
+        assert sg is not None and sg
         return sg
         
     @db_api 
@@ -473,6 +504,12 @@ class DBCtx:
             logging.error("Semantic group %d does nto exist" % id_)
         sql = """delete from semantic_group where id = (?)"""
         self.cursor.execute(sql, (id_, ))
+
+    @db_api
+    def get_words_with_initial_form(self, word_id: WordID) -> List[WordID]:
+        sql = """select id from word where initial_form_id = (?)"""
+        word_ids = unwrap(self.cursor.execute(sql, (word_id, )))
+        return word_ids
 
 
 def test_db_ctx():

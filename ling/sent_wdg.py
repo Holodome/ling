@@ -61,6 +61,7 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         semantic_group_names = [group.name for group in semantic_groups]
         for kind_name in semantic_group_names:
             self.mark_kind_cb.addItem(kind_name)
+        self.semantic_groups = semantic_groups
 
         self.text_view.setReadOnly(True)
         self.generate_view()
@@ -85,7 +86,7 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
 
     def get_selected_ling_kind(self):
         kind_idx = self.mark_kind_cb.currentIndex()
-        kind = ling.LingKind(kind_idx)
+        kind = self.semantic_groups[kind_idx].id
         return kind
 
     def get_list_of_selected_col_table_rows(self):

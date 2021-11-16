@@ -67,6 +67,21 @@ class AppCtx:
         sent_ctx.connections = ling_connections
         return sent_ctx
 
+    def get_initial_form(self, word: db.Word) -> db.Word:
+        # @NOTE(hl): Wrapper for conditional
+        # @TODO(hl): It may be beneficial to always store initial_form_id and detect it is the initial form by comparing
+        #  ids?
+        return self.db.get_word(word.initial_form_id) if word.initial_form_id is not None else word
+
+    def get_words_of_sem_group(self, sg: db.SemanticGroupID) -> List[db.WordID]:
+        # @TODO(hl): SPEED
+        coll_ids = self.db.get_collocations_of_sem_group(sg)
+        colls = self.get_collocations_from_ids(coll_ids)
+        assert len(set(coll_ids)) == len(coll_ids)
+        result = []
+        for coll in colls:
+            result.extend(coll.words)
+        return result
 
 
 def get() -> AppCtx:

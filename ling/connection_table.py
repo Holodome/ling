@@ -27,7 +27,6 @@ class ConnectionTableWidget(QtWidgets.QMainWindow):
         self.table.setRowCount(len(conns))
         self.table.setColumnCount(len(self.COLUMN_NAMES))
         for idx, word in enumerate(conns):
-            print(conns)
             item = QtWidgets.QTableWidgetItem(str(word.predicate))
             self.table.setItem(idx, self.PRED_COL, item)
             item = QtWidgets.QTableWidgetItem(str(word.object_))
@@ -39,47 +38,29 @@ class ConnectionTableWidget(QtWidgets.QMainWindow):
     def __del__(self):
         logging.info("Deleting ConnectionTableWidget")
 
-    def get_list_of_selected_col_table_rows(self):
-        selected_items = self.table.selectedItems()
-        rows = set()
-        for item in selected_items:
-            item_row = item.row()
-            rows.add(item_row)
-        return list(rows)
-
     def find_sent(self):
         from ling.sentence_table import SentenceTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             selected_id = self.conns[selected].id
             # @TODO(hl): SPEED
             sentences = app.get().db.get_all_sentences()
             sentences = list(filter(lambda it: selected_id in it.connections, sentences))
-
-            window = QtWidgets.QMainWindow(self)
-            table = SentenceTableWidget(sentences)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
+            qt_helper.create_widget_window(SentenceTableWidget(sentences), self)
 
     def find_coll(self):
         from ling.collocation_table import CollocationTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             selected_ids = [self.conns[selected].object_, self.conns[selected].predicate]
             # @TODO(hl): SPEED
             collocations = app.get().db.get_all_collocations()
             collocations = list(filter(lambda it: it.id in selected_ids, collocations))
-
-            window = QtWidgets.QMainWindow(self)
-            table = CollocationTableWidget(collocations)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
+            qt_helper.create_widget_window(CollocationTableWidget(collocations), self)
 
     def init_ui(self):
         self.coll_btn.clicked.connect(self.find_coll)

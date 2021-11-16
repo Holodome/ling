@@ -10,8 +10,8 @@ def excepthook_override(cls, exception, traceback):
     f = tf.TemporaryFile("w+")
     tb.print_exception(cls, exception, traceback, file=f)
     f.seek(os.SEEK_SET)
-    logging.error("Python expection: %s", f.read())
-    sys.__excepthook__(cls, exception, traceback)
+    logging.error("Python exception: %s", f.read())
+    # sys.__excepthook__(cls, exception, traceback)
 
 
 def init_logger():
