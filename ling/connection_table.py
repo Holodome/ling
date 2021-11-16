@@ -7,6 +7,7 @@ import ling.ling as ling
 import ling.db_model as db
 import ling.app as app
 import ling.sent_wdg as sent_wdg
+import ling.qt_helper as qt_helper
 
 
 class ConnectionTableWidget(QtWidgets.QMainWindow):

@@ -9,6 +9,7 @@ import ling.ling as ling
 import ling.db_model as db
 import ling.app as app
 import ling.sent_wdg as sent_wdg
+import ling.qt_helper as qt_helper
 
 
 class WordTableWidget(QtWidgets.QMainWindow):
@@ -39,47 +40,29 @@ class WordTableWidget(QtWidgets.QMainWindow):
     def __del__(self):
         logging.info("Deleting WordTableWidget")
 
-    def get_list_of_selected_col_table_rows(self):
-        selected_items = self.table.selectedItems()
-        rows = set()
-        for item in selected_items:
-            item_row = item.row()
-            rows.add(item_row)
-        return list(rows)
-
     def find_sent(self):
         from ling.sentence_table import SentenceTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             selected_id = self.words[selected].id
             # @TODO(hl): SPEED
             sentences = app.get().db.get_all_sentences()
             sentences = list(filter(lambda it: selected_id in it.words, sentences))
-
-            window = QtWidgets.QMainWindow(self)
-            table = SentenceTableWidget(sentences)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
+            qt_helper.create_widget_window(SentenceTableWidget(sentences), self)
 
     def find_coll(self):
         from ling.collocation_table import CollocationTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
-            selected_ids = self.words[selected].id
+            selected_id = self.words[selected].id
             # @TODO(hl): SPEED
             collocations = app.get().db.get_all_collocations()
-            collocations = list(filter(lambda it: id in it.words , collocations))
-
-            window = QtWidgets.QMainWindow(self)
-            table = CollocationTableWidget(collocations)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
+            collocations = list(filter(lambda it: selected_id in it.words, collocations))
+            qt_helper.create_widget_window(CollocationTableWidget(collocations), self)
 
     def init_ui(self):
         self.coll_btn.clicked.connect(self.find_coll)

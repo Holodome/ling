@@ -6,9 +6,14 @@ import dataclasses
 import ling.db_model as db
 import ling.ling as ling
 import ling.sent_wdg as sent_wdg
+from typing import List
 
 
 class AppCtx:
+    """
+    Acts as an interface to DB, linking db functionality with other application parts
+    by providing high-level interface to DB api
+    """
     _instance = None
 
     def __init__(self):
@@ -21,10 +26,23 @@ class AppCtx:
             cls._instance.__init__()
         return cls._instance
 
+    # @NOTE(hl): Put helper methods for accessing db here to keep db api clear
+    def get_collocations_from_ids(self, ids: List[db.CollocationID]) -> List[db.Collocation]:
+        db_collocations = [self.db.get_collocation(col_id) for col_id in ids]
+        return db_collocations
+
+    def get_connections_from_ids(self, ids: List[db.ConnID]) -> List[db.Connection]:
+        db_collocations = [self.db.get_connection(col_id) for col_id in ids]
+        return db_collocations
+
+    def get_words_from_ids(self, ids: List[db.WordID]) -> List[db.Word]:
+        db_words = [self.db.get_word(id_) for id_ in ids]
+        return db_words
+
     def create_sent_ctx_from_db(self, id_: db.SentenceID) -> ling.SentenceCtx:
         sentence = self.db.get_sentence(id_)
-        db_collocations = [self.db.get_collocation(col_id) for col_id in sentence.collocations]
-        db_connections = [self.db.get_connection(col_id) for col_id in sentence.connections]
+        db_collocations = self.get_collocations_from_ids(sentence.collocations)
+        db_connections = self.get_connections_from_ids(sentence.connections)
 
         sent_ctx = ling.SentenceCtx()
         # @NOTE(hl): Cause we're lazy to do proper initialization with words
@@ -48,6 +66,7 @@ class AppCtx:
 
         sent_ctx.connections = ling_connections
         return sent_ctx
+
 
 
 def get() -> AppCtx:

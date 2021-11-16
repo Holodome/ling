@@ -2,6 +2,7 @@ from PyQt5 import QtWidgets, uic
 
 import ling.ling as ling
 import ling.sent_wdg as sent_wdg
+import ling.qt_helper as qt_helper
 
 
 class TextEditWidget(QtWidgets.QMainWindow):

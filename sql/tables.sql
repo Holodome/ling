@@ -11,9 +11,9 @@ CREATE TABLE IF NOT EXISTS word (
     initial_form_id integer,
     has_initial_form boolean not null, -- this is not to change every query comparing initial_form_id to null
     CONSTRAINT uniq UNIQUE (
-        word,
-        part_of_speech,
-        initial_form_id
+        word
+        -- part_of_speech,
+        -- initial_form_id
     )
 );
 

@@ -79,6 +79,7 @@ class AppWidget(QtWidgets.QMainWindow):
         self.open_bd_btn.clicked.connect(self.open_bd)
         self.update_btn.clicked.connect(self.generate_view)
         self.open_text_btn.clicked.connect(self.open_text)
+        self.sem_groups_btn.clicked.connect(self.show_sem_groups)
 
     def get_entered_word(self):
         text = self.word_enter_le.text()
@@ -95,7 +96,7 @@ class AppWidget(QtWidgets.QMainWindow):
 
     def find(self):
         entered = self.get_entered_word()
-        deriv_ids = app.get().db.get_deriv_form_id_by_word(entered)
+        deriv_ids = app.get().db.get_word_id_by_word(entered)
         words = [app.get().db.get_word(id_) for id_ in deriv_ids]
         window = QtWidgets.QMainWindow(self)
         table = word_table.WordTableWidget(words)
@@ -131,6 +132,15 @@ class AppWidget(QtWidgets.QMainWindow):
         window.setCentralWidget(table)
         window.resize(table.size())
         window.show()
+        
+    def show_sem_groups(self):
+        from ling.sem_groups_table import SemanticGroupsWidget
+        window = QtWidgets.QMainWindow(self)
+        table = SemanticGroupsWidget()
+        window.setCentralWidget(table)
+        window.resize(table.size())
+        window.show()
+
 
 
 def test_app_wdg():

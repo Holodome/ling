@@ -9,6 +9,7 @@ import ling.ling as ling
 import ling.db_model as db
 import ling.app as app
 import ling.sent_wdg as sent_wdg
+import ling.qt_helper as qt_helper
 
 
 class SentenceTableWidget(QtWidgets.QMainWindow):
@@ -59,17 +60,9 @@ class SentenceTableWidget(QtWidgets.QMainWindow):
         self.table.resizeColumnsToContents()
         self.table.resizeRowsToContents()
 
-    def get_list_of_selected_col_table_rows(self):
-        selected_items = self.table.selectedItems()
-        rows = set()
-        for item in selected_items:
-            item_row = item.row()
-            rows.add(item_row)
-        return list(rows)
-
     def ling_edit(self):
         # @NOTE(hl): This function name because 'edit' is reserved by Qt
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             sel_id = self.sentences[selected].id
@@ -82,46 +75,29 @@ class SentenceTableWidget(QtWidgets.QMainWindow):
         # @NOTE(hl): To avoid recursion on top level
         from ling.word_table import WordTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             word_ids = self.sentences[selected].words
-            words = [app.get().db.get_word(id_) for id_ in word_ids]
-            window = QtWidgets.QMainWindow(self)
-            table = WordTableWidget(words)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
+            words = app.get().get_words_from_ids(word_ids)
+            qt_helper.create_widget_window(WordTableWidget(words), self)
 
     def find_conns(self):
         from ling.connection_table import ConnectionTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             selected_ids = self.sentences[selected].connections
-            # @TODO(hl): SPEED
-            connections = [app.get().db.get_connection(id_) for id_ in selected_ids]
-
-            window = QtWidgets.QMainWindow(self)
-            table = ConnectionTableWidget(connections)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
+            connections = app.get().get_connections_from_ids(selected_ids)
+            qt_helper.create_widget_window(ConnectionTableWidget(connections), self)
 
     def find_colls(self):
         from ling.collocation_table import CollocationTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             selected_ids = self.sentences[selected].collocations
-            # @TODO(hl): SPEED
-            collocations = [app.get().db.get_collocation(id_) for id_ in selected_ids]
-
-            window = QtWidgets.QMainWindow(self)
-            table = CollocationTableWidget(collocations)
-            window.setCentralWidget(table)
-            window.resize(table.size())
-            window.show()
-
+            collocations = app.get().get_collocations_from_ids(selected_ids)
+            qt_helper.create_widget_window(CollocationTableWidget(collocations), self)

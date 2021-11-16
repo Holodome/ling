@@ -240,6 +240,19 @@
     <string>Открыть текст</string>
    </property>
   </widget>
+  <widget class="QPushButton" name="sem_groups_btn">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>400</y>
+     <width>201</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Семантические группы</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>
