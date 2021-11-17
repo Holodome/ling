@@ -31,7 +31,7 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         table.setRowCount(len(self.ctx.collocations))
         table.setColumnCount(2)
         for row_idx, collocation in enumerate(self.ctx.collocations):
-            collocation_words = ";".join(map(lambda it: self.ctx.words[it], collocation.words))
+            collocation_words = ";".join(map(lambda it: self.ctx.words[it], collocation.word_idxs))
             word_it = QtWidgets.QTableWidgetItem(collocation_words)
             kind_it = QtWidgets.QTableWidgetItem(app.get().db.get_semantic_group(collocation.semantic_group).name)
             table.setItem(row_idx, 0, word_it)

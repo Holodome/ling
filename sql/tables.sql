@@ -3,102 +3,102 @@ create table if not exists semantic_group (
     name text not null
 );
 
-CREATE TABLE IF NOT EXISTS word (
-    id INTEGER PRIMARY KEY,
-    word TEXT NOT NULL,
+create table if not exists word (
+    id integer primary key,
+    word TEXT not null,
 
-    part_of_speech int NOT NULL,
+    part_of_speech int not null,
     initial_form_id integer,
     has_initial_form boolean not null, -- this is not to change every query comparing initial_form_id to null
-    CONSTRAINT uniq UNIQUE (
+    constraint uniq UNIQUE (
         word
         -- part_of_speech,
         -- initial_form_id
     )
 );
 
-CREATE TABLE IF NOT EXISTS collocation (
-    id INTEGER PRIMARY KEY,
-    semantic_group_id INTEGER NOT NULL,
-    word_hash INTEGER NOT NULL, -- see db_model.py
+create table if not exists collocation (
+    id integer primary key,
+    semantic_group_id integer not null,
+    word_hash integer not null, -- see db_model.py
 
     constraint uniq unique (
         semantic_group_id,
         word_hash
     ),
 
-    FOREIGN KEY(semantic_group_id) REFERENCES semantic_group(id)
+    foreign key(semantic_group_id) references semantic_group(id)
 );
 
-CREATE TABLE IF NOT EXISTS collocation_junction (
-    idx INTEGER NOT NULL,
-    word_id INTEGER NOT NULL,
-    collocation_id INTEGER NOT NULL,
-    CONSTRAINT pk PRIMARY KEY (
+create table if not exists collocation_junction (
+    idx integer not null,
+    word_id integer not null,
+    collocation_id integer not null,
+    constraint pk primary key (
         idx,
         word_id,
         collocation_id
     ),
 
-    FOREIGN KEY(word_id) REFERENCES word(id),
-    FOREIGN KEY(collocation_id) REFERENCES collocation(id)
+    foreign key(word_id) references word(id),
+    foreign key(collocation_id) references collocation(id)
 );
 
-CREATE TABLE IF NOT EXISTS conn ( -- connection, but it is reserved
-    id INTEGER PRIMARY KEY,
-    predicate INTEGER NOT NULL,
-    object INTEGER NOT NULL,
+create table if not exists conn ( -- connection, but it is reserved
+    id integer primary key,
+    predicate integer not null,
+    object integer not null,
 
-    CONSTRAINT uniq UNIQUE (
+    constraint uniq UNIQUE (
         predicate,
         object
     ),
 
-    FOREIGN KEY(predicate) REFERENCES collocation(id),
-    FOREIGN KEY(object) REFERENCES collocation(id)
+    foreign key(predicate) references collocation(id),
+    foreign key(object) references collocation(id)
 );
 
-CREATE TABLE IF NOT EXISTS sentence (
-    id INTEGER PRIMARY KEY,
-    contents TEXT NOT NULL UNIQUE,
-    word_count INTEGER NOT NULL
+create table if not exists sentence (
+    id integer primary key,
+    contents TEXT not null UNIQUE,
+    word_count integer not null
 );
 
-CREATE TABLE IF NOT EXISTS sentence_collocation_junction (
-    sentence_id INTEGER NOT NULL,
-    collocation_id INTEGER NOT NULL,
-    CONSTRAINT pk PRIMARY KEY (
+create table if not exists sentence_collocation_junction (
+    sentence_id integer not null,
+    collocation_id integer not null,
+    constraint pk primary key (
        sentence_id,
        collocation_id
     ),
 
-    FOREIGN KEY(sentence_id) REFERENCES sentence(id),
-    FOREIGN KEY(collocation_id) REFERENCES collocation(id)
+    foreign key(sentence_id) references sentence(id),
+    foreign key(collocation_id) references collocation(id)
 );
 
-CREATE TABLE IF NOT EXISTS sentence_connection_junction (
-    sentence_id INTEGER NOT NULL,
-    conn_id INTEGER NOT NULL,
-    CONSTRAINT pk PRIMARY KEY (
+create table if not exists sentence_connection_junction (
+    sentence_id integer not null,
+    conn_id integer not null,
+    constraint pk primary key (
        sentence_id,
        conn_id
     ),
 
-    FOREIGN KEY(sentence_id) REFERENCES sentence(id),
-    FOREIGN KEY(conn_id) REFERENCES conn(id)
+    foreign key(sentence_id) references sentence(id),
+    foreign key(conn_id) references conn(id)
 );
 
-CREATE TABLE IF NOT EXISTS sentence_word_junction (
-    sentence_id INTEGER NOT NULL,
-    word_id   INTEGER NOT NULL,
-    idx      INTEGER NOT NULL,
-    text_idx INTEGER NOT NULL, -- index in sentence text
-    CONSTRAINT pk PRIMARY KEY (
+create table if not exists sentence_word_junction (
+    sentence_id integer not null,
+    word_id   integer not null,
+    idx      integer not null,
+    text_idx integer not null, -- index in sentence text
+    constraint pk primary key (
         sentence_id,
         word_id,
         idx
     ),
 
-    FOREIGN KEY(sentence_id) REFERENCES sentence(id),
-    FOREIGN KEY(word_id) REFERENCES word(id)
+    foreign key(sentence_id) references sentence(id),
+    foreign key(word_id) references word(id)
 );

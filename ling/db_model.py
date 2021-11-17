@@ -43,13 +43,13 @@ ConnID = typing.NewType("ConnID", int)
 SentenceID = typing.NewType("SentenceID", int)
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class SemanticGroup:
     id: SemanticGroupID
     name: str
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Word:
     id: WordID
     initial_form_id: Union[WordID, None]
@@ -57,7 +57,7 @@ class Word:
     word: str
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Collocation:
     id: CollocationID
     semantic_group_id: SemanticGroupID
@@ -65,14 +65,14 @@ class Collocation:
     words_hash: int
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Connection:
     id: ConnID
     predicate: CollocationID
     object_: CollocationID
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class Sentence:
     id: SentenceID
     contents: str
@@ -368,24 +368,9 @@ class DBCtx:
         #
         # first of all, delete all previous entries about sentence
         #
-        # sql = """delete from Collocation_Junction where collocation_id in (
-        #             select collocation_id from Sentence_Collocation_Junction
-        #             where sentence_id = (?)
-        #          )"""
-        # self.cursor.execute(sql, sentence_id)
-        # sql = """delete from Collocation where id in (
-        #             select collocation_id from Sentence_Collocation_Junction
-        #             where sentence_id = (?)
-        #          )"""
-        # self.cursor.execute(sql, sentence_id)
         sql = """delete from Sentence_Collocation_Junction where sentence_id = (?)"""
         self.cursor.execute(sql, sentence_id)
 
-        # sql = """delete from Conn where id in (
-        #          select conn_id from Sentence_Connection_Junction
-        #             where sentence_id = (?)
-        #          )"""
-        # self.cursor.execute(sql, sentence_id)
         sql = """delete from Sentence_Connection_Junction where sentence_id = (?)"""
         self.cursor.execute(sql, sentence_id)
         sql = """delete from sentence_word_junction where sentence_id = (?)"""
@@ -409,11 +394,9 @@ class DBCtx:
         for idx, collocation in enumerate(sent.collocations):
             from zlib import crc32
             # @TODO(hl): Better hash function
-            collocation_words = list(map(lambda it: sent.words[it], collocation.words))
-            collocation_words.sort()
+            collocation_words = list(map(lambda it: sent.words[it], collocation.word_idxs))
             words_hash = crc32(bytes(str(collocation_words), "utf8"))
             print(collocation_words, words_hash)
-
             # First of all, try to find collocation with same words
             # @HACK(hl): Because it is complicated and slow to do checks for all junctions, we use word hash here
             #  This way we can directly compare it
@@ -431,7 +414,7 @@ class DBCtx:
                 sql = """insert into collocation_junction (word_id, collocation_id, idx)
                          values (?, ?, ?)
                          """
-                words = list(map(lambda it: (word_ids[it[1]], collocation_id, it[0]), enumerate(collocation.words)))
+                words = list(map(lambda it: (word_ids[it[1]], collocation_id, it[0]), enumerate(collocation.word_idxs)))
                 self.cursor.executemany(sql, words)
             else:
                 logging.info("Collocation %d %s is already present " % (collocation.semantic_group, str(collocation_words)))
@@ -498,7 +481,8 @@ class DBCtx:
         return sg
         
     @db_api 
-    def remove_semantic_group(self, id_: SemanticGroupID): 
+    def remove_semantic_group(self, id_: SemanticGroupID):
+        # @TODO(hl): MAKE SURE NO LINKS TO DELETED SEMANTIC GROUP ARE STILL IN DB
         sg = self.get_semantic_group(id_)
         if sg is None:
             logging.error("Semantic group %d does nto exist" % id_)
@@ -513,7 +497,6 @@ class DBCtx:
 
 
 def test_db_ctx():
-
     db_name = "test.sqlite"
 
     try:

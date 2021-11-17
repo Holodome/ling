@@ -71,14 +71,14 @@ def lines_intersect(a1, a2, b1, b2):
 
 @dataclasses.dataclass
 class Collocation:
-    words: List[int]
+    word_idxs: List[int]
     semantic_group: SemanticGroup
 
     def remove_common_words(self, words: List[int]):
-        self.words = list(filter(lambda it: it not in words, self.words))
+        self.word_idxs = list(filter(lambda it: it not in words, self.word_idxs))
 
     def does_exists(self):
-        return len(self.words) != 0
+        return len(self.word_idxs) != 0
 
 
 @dataclasses.dataclass
@@ -156,7 +156,7 @@ class SentenceCtx:
     def get_word_semantic_group(self, word_idx: int):
         semantic_group = 0
         for collocation in self.collocations:
-            if word_idx in collocation.words:
+            if word_idx in collocation.word_idxs:
                 semantic_group = collocation.semantic_group
         return semantic_group
 
@@ -168,7 +168,7 @@ class SentenceCtx:
     def get_corresponding_collocation_id(self, word_idx: int) -> int:
         result = -1
         for i, collocation in enumerate(self.collocations):
-            if word_idx in collocation.words:
+            if word_idx in collocation.word_idxs:
                 result = i
         return result
 
@@ -220,7 +220,7 @@ class SentenceCtx:
             new_semantic_group = collocations_to_join[0].semantic_group
             new_words = []
             for col in collocations_to_join:
-                new_words.extend(col.words)
+                new_words.extend(col.word_idxs)
             new_idx = self.add_collocation(new_words, new_semantic_group)
             print(new_idx)
             # add connections
