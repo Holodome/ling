@@ -142,7 +142,6 @@ class AppWidget(QtWidgets.QMainWindow):
         window.show()
 
 
-
 def test_app_wdg():
     import sys
     app = QtWidgets.QApplication(sys.argv)

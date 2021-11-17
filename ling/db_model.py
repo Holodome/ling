@@ -290,7 +290,7 @@ class DBCtx:
 
     @db_api
     def get_collocation_ids_with_word_id(self, id_: WordID) -> List[CollocationID]:
-        sql = """select DISTinCT collocation_id from Collocation_Junction
+        sql = """select distinct collocation_id from Collocation_Junction
                  where word_id = (?)"""
         col_ids = self.cursor.execute(sql, (id_,))
         col_ids = unwrap(col_ids)
@@ -298,13 +298,21 @@ class DBCtx:
         return col_ids
 
     @db_api
+    def get_connection_ids_with_coll_id_object(self, id_: CollocationID) -> List[ConnID]:
+        sql = """select id from conn where object = (?)"""
+        ids0 = unwrap(self.cursor.execute(sql, (id_,)))
+        return ids0
+
+    @db_api
+    def get_connection_ids_with_coll_id_predicate(self, id_: CollocationID) -> List[ConnID]:
+        sql = """select id from conn where predicate = (?)"""
+        ids1 = unwrap(self.cursor.execute(sql, (id_,)))
+        return ids1
+
+    @db_api
     def get_connection_ids_with_coll_id(self, id_: CollocationID) -> List[ConnID]:
-        sql = """select id from Conn where object = (?)"""
-        ids0 = list(self.cursor.execute(sql, (id_,)))
-        sql = """select id from Collocation where predicate = (?)"""
-        ids1 = list(self.cursor.execute(sql, (id_,)))
-        unique_ids = set(*ids0, *ids1)
-        return list(unique_ids)
+        return list(set(self.get_connection_ids_with_coll_id_object(id_) +
+                        self.get_connection_ids_with_coll_id_predicate(id_)))
 
     @db_api
     def get_connection_ids_with_word_id(self, id_: WordID) -> List[ConnID]:
@@ -348,9 +356,9 @@ class DBCtx:
     def get_collocations_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
         # @TODO(hl): Speed
         logging.info("get_collocations_of_sem_group %d" % sg)
-        colls = self.get_all_collocations()
-        result = [it.id for it in colls if it.semantic_group_id == sg]
-        return list(set(result))
+        sql = """select id from collocation where semantic_group_id = (?)"""
+        result = unwrap(self.cursor.execute(sql, (sg, )))
+        return result
 
     @db_api
     def add_or_update_sentence_record(self, sent: ling.SentenceCtx):
@@ -434,10 +442,9 @@ class DBCtx:
             conn_collocation_ids = (collocation_ids[connection[0]], collocation_ids[connection[1]])
             self.cursor.execute(sql, conn_collocation_ids)
 
-            # @TODO(hl): Uniquiness
             sql = """select id from Conn
-                     where rowid = ( select last_insert_rowid() )"""
-            conn_id = self.cursor.execute(sql)
+                     where predicate = (?) and object = (?)"""
+            conn_id = self.cursor.execute(sql, conn_collocation_ids)
             conn_id = next(conn_id)[0]
             sql = """insert into Sentence_Connection_Junction (sentence_id, conn_id)
                      values(?, ?)"""
@@ -519,51 +526,6 @@ def test_db_ctx():
 
         ctx.add_or_update_sentence_record(sentence1)
         ctx.add_or_update_sentence_record(sentence2)
-
-        # word = "ручкой"
-        # print("--Init of ", word)
-        # a = ctx.get_initial_form(word)
-        # print('\n'.join(map(str, a)))
-        #
-        # print("--All inits")
-        # a = ctx.get_initial_form()
-        # print('\n'.join(map(str, a)))
-        #
-        # print("--Deriv of", word)
-        # a = ctx.get_word(word)
-        # print('\n'.join(map(str, a)))
-        #
-        # print("--All derivs")
-        # a = ctx.get_word()
-        # print('\n'.join(map(str, a)))
-        #
-        # print("--All collocations")
-        # a = ctx.get_collocation()
-        # print('\n'.join(map(str, a)))
-        #
-        # print("--Coll with", word)
-        # a = ctx.get_collocation(word)
-        # print('\n'.join(map(str, a)))
-        #
-        # print("--All connections")
-        # a = ctx.get_connection()
-        # print('\n'.join(map(str, a)))
-        #
-        # print("--Connection with", word)
-        # a = ctx.get_connection(word)
-        # print('\n'.join(map(str, a)))
-        #
-        # print("--All sentence ids")
-        # a = ctx.get_sentence_id()
-        # print("\n".join(map(str, a)))
-        #
-        # print("--All sentence texts")
-        # a = list(map(ctx.get_sentence_text, a))
-        # print("\n".join(a))
-        #
-        # print("--Sentences with", word)
-        # a = ctx.get_sentences_by_word(word)
-        # print("\n".join(map(str, a)))
     except Exception:
         traceback.print_exc()
     # os.remove(db_name)

@@ -40,14 +40,6 @@ class CollocationTableWidget(QtWidgets.QMainWindow):
     def __del__(self):
         logging.info("Deleting CollocationTableWidget")
 
-    def get_list_of_selected_col_table_rows(self):
-        selected_items = self.table.selectedItems()
-        rows = set()
-        for item in selected_items:
-            item_row = item.row()
-            rows.add(item_row)
-        return list(rows)
-
     def find_sent(self):
         from ling.sentence_table import SentenceTableWidget
 
@@ -63,7 +55,7 @@ class CollocationTableWidget(QtWidgets.QMainWindow):
     def find_conn(self):
         from ling.connection_table import ConnectionTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             selected_id = self.colls[selected].id
@@ -76,7 +68,7 @@ class CollocationTableWidget(QtWidgets.QMainWindow):
     def find_words(self):
         from ling.word_table import WordTableWidget
 
-        selected = self.get_list_of_selected_col_table_rows()
+        selected = qt_helper.table_get_selected_rows(self.table)
         if selected:
             selected = selected[0]
             selected_words = self.colls[selected].words
@@ -85,9 +77,20 @@ class CollocationTableWidget(QtWidgets.QMainWindow):
             words = list(filter(lambda it: it.id in selected_words, words))
             qt_helper.create_widget_window(WordTableWidget(words), self)
 
+    def find_connected(self):
+        selected = qt_helper.table_get_selected_rows(self.table)
+        if selected:
+            selected = selected[0]
+            selected_id = self.colls[selected].id
+            connected_ids = app.get().db.get_connection_ids_with_coll_id(selected_id)
+            print(connected_ids)
+            connected = app.get().get_collocations_from_ids(connected_ids)
+            qt_helper.create_widget_window(CollocationTableWidget(connected), self)
+
     def init_ui(self):
         self.conn_btn.clicked.connect(self.find_conn)
         self.sent_btn.clicked.connect(self.find_sent)
         self.words_btn.clicked.connect(self.find_words)
+        self.connected_btn.clicked.connect(self.find_connected)
 
 
