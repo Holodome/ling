@@ -52,7 +52,7 @@ class WordTableWidget(QtWidgets.QMainWindow):
             selected_id = self.words[selected].id
             # @TODO(hl): SPEED
             sentences = app.get().db.get_all_sentences()
-            sentences = list(filter(lambda it: selected_id in it.word_idxs, sentences))
+            sentences = list(filter(lambda it: selected_id in it.words, sentences))
             qt_helper.create_widget_window(SentenceTableWidget(sentences), self)
 
     def find_coll(self):
@@ -64,7 +64,7 @@ class WordTableWidget(QtWidgets.QMainWindow):
             selected_id = self.words[selected].id
             # @TODO(hl): SPEED
             collocations = app.get().db.get_all_collocations()
-            collocations = list(filter(lambda it: selected_id in it.word_idxs, collocations))
+            collocations = list(filter(lambda it: selected_id in it.words, collocations))
             qt_helper.create_widget_window(CollocationTableWidget(collocations), self)
 
     def find_same_root(self):

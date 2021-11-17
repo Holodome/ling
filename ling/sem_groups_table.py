@@ -43,7 +43,7 @@ class SemanticGroupsWidget(QtWidgets.QMainWindow):
             colls = app.get().db.get_collocations_of_sem_group(sg.id)
             item = QtWidgets.QTableWidgetItem(str(len(colls)))
             self.table.setItem(idx, self.COLLS_COL, item)
-            # @TODO(hl): SPEED
+
             words = app.get().get_words_of_sem_group(sg.id)
             item = QtWidgets.QTableWidgetItem(str(len(words)))
             self.table.setItem(idx, self.WORDS_COL, item)

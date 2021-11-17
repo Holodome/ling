@@ -1,5 +1,6 @@
 import enum
 import dataclasses
+import logging
 import typing
 from typing import List, Tuple, Union
 import pymorphy2
@@ -93,8 +94,22 @@ class SentenceCtx:
     collocation_id_freelist: [int] = dataclasses.field(default_factory=list)
     connections: List[Tuple[int, int]] = dataclasses.field(default_factory=list)
 
+    def word_idx(self, word: str) -> int:
+        for i, test in enumerate(self.words):
+            if test.lower() == word:
+                return i
+        raise RuntimeError
+
     def init_from_text(self, text: str):
-        text = text.lower()
+        # Remove all trailing symbols
+        assert text
+        cursor = len(text)
+        while not text[cursor - 1].isalnum() and cursor != 0:
+            cursor -= 1
+        if cursor != len(text):
+            logging.warning("Stripping '%s' from sentence '%s'", text[cursor:], text)
+        text = text[:cursor]
+
         non_word_sentence_parts = []
         non_word_sentence_part_starts = []
         words = []
@@ -102,12 +117,12 @@ class SentenceCtx:
         cursor = 0
         while cursor < len(text):
             non_word_start = cursor
-            while cursor < len(text) and not text[cursor].isalpha():
+            while cursor < len(text) and not text[cursor].isalnum():
                 cursor += 1
             non_word_sentence_parts.append(text[non_word_start:cursor])
             non_word_sentence_part_starts.append(non_word_start)
             word_start = cursor
-            while cursor < len(text) and text[cursor].isalpha():
+            while cursor < len(text) and text[cursor].isalnum():
                 cursor += 1
             words.append(text[word_start:cursor])
             words_start_idxs.append(word_start)
@@ -121,7 +136,7 @@ class SentenceCtx:
 
     def add_collocation(self, word_idxs: List[int], semantic_group: SemanticGroup):
         assert semantic_group != 0
-        # Add new entry
+        assert all(map(lambda it: it < len(self.words), word_idxs))
         idx = self.get_new_collocation_idx()
         coll = Collocation(word_idxs, semantic_group)
         self.collocations[idx] = coll
@@ -308,6 +323,10 @@ class Word:
 
     @staticmethod
     def create(word: str):
+        # @HACK @TODO Normal handling
+        if word.isnumeric():
+            return Word(word, None, PartOfSpeech.NUMR)
+
         parse_results = morph.parse(word)
         if parse_results:
             form = parse_results[0]

@@ -20,7 +20,7 @@ create table if not exists word (
 create table if not exists collocation (
     id integer primary key,
     semantic_group_id integer not null,
-    word_hash integer not null, -- see db_model.py
+    word_hash text not null, -- see db_model.py
 
     constraint uniq unique (
         semantic_group_id,

@@ -18,6 +18,11 @@ def unwrap(x):
     return flatten_by_idx(x, 0)
 
 
+def safe_unpack(_list: list):
+    assert _list
+    return _list[0]
+
+
 def db_api(func):
     """
     Декоратор для методов API работы с базой данных - мы хотим получить корректную обработку ошибок
@@ -29,18 +34,18 @@ def db_api(func):
         assert len(args) >= 1
         self = args[0]
         if self.database is not None:
-            return func(*args, **kwargs)
-        logging.debug("Tried to call func %s with no database open" % func.__name__)
+            result = func(*args, **kwargs)
+            return result
+        logging.error("Tried to call func %s with no database open" % func.__name__)
+        raise RuntimeError
         return None
 
     return wrapper
 
 
-def safe_unpack(_list: list):
-    assert _list
-    return _list[0]
-
-
+#
+# Aliases for db id's to use in type annotations
+#
 SemanticGroupID = typing.NewType("SemanticGroupID", int)
 WordID = typing.NewType("WordID", int)
 CollocationID = typing.NewType("CollocationID", int)
@@ -48,6 +53,9 @@ ConnID = typing.NewType("ConnID", int)
 SentenceID = typing.NewType("SentenceID", int)
 
 
+#
+# ORM
+#
 @dataclasses.dataclass(frozen=True)
 class SemanticGroup:
     id: SemanticGroupID
@@ -135,7 +143,7 @@ class DBCtx:
         self.database.commit()
 
     def get_semantic_group_internal(self, id_: Union[SemanticGroupID, None] = None) \
-        -> List[SemanticGroup]:
+            -> List[SemanticGroup]:
         sql = """select id, name from semantic_group"""
         values = self.abstract_sql_resource_get(sql, id_)
         logging.info("Queried %d semantic groups", len(values))
@@ -331,16 +339,6 @@ class DBCtx:
                         self.get_connection_ids_with_coll_id_predicate(id_)))
 
     @db_api
-    def get_connection_ids_with_word_id(self, id_: WordID) -> List[ConnID]:
-        # @TODO(hl): Speed
-        collocation_ids = self.get_collocation_ids_with_word_id(id_)
-        result = []
-        for id_ in collocation_ids:
-            coll_conns = self.get_connection_ids_with_coll_id(id_)
-            result.extend(coll_conns)
-        return result
-
-    @db_api
     def get_sentences_id_by_word_id(self, id_: WordID) -> List[SentenceID]:
         # @TODO(hl): Speed
         coll_ids = self.get_collocation_ids_with_word_id(id_)
@@ -358,7 +356,7 @@ class DBCtx:
         groups = self.execute(sql, name)
         result = 0
         if groups:
-            result = groups[0][0]
+            result = groups[0]
         return result
 
     @db_api
@@ -369,7 +367,6 @@ class DBCtx:
 
     @db_api
     def get_collocations_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
-        # @TODO(hl): Speed
         logging.info("get_collocations_of_sem_group %d" % sg)
         sql = """select id from collocation where semantic_group_id = (?)"""
         result = self.execute(sql, sg)
@@ -414,20 +411,17 @@ class DBCtx:
 
         collocation_ids = []
         for idx, collocation in enumerate(sent.collocations):
-            from zlib import crc32
-            # @TODO(hl): Better hash function
             collocation_words = list(map(lambda it: sent.words[it], collocation.word_idxs))
-            words_hash = crc32(bytes(str(collocation_words), "utf8"))
-            print(collocation_words, words_hash)
+            word_hash = " ".join(collocation_words)
             # First of all, try to find collocation with same words
             # @HACK(hl): Because it is complicated and slow to do checks for all junctions, we use word hash here
             #  This way we can directly compare it
             sql = """select id from collocation where word_hash = (?)"""
-            collocation_id = self.execute(sql, words_hash)
+            collocation_id = self.execute(sql, word_hash)
             if not collocation_id:
                 logging.info("Inserting collocation %d %s" % (collocation.semantic_group, str(collocation_words)))
                 sql = """insert into collocation (semantic_group_id, word_hash) values (?, ?)"""
-                self.execute(sql, collocation.semantic_group, words_hash)
+                self.execute(sql, collocation.semantic_group, word_hash)
                 sql = """select id from collocation
                          where rowid = ( select last_insert_rowid() )"""
                 collocation_id = safe_unpack(self.execute(sql))
@@ -448,7 +442,6 @@ class DBCtx:
 
         logging.info("Inserting %d connections" % len(sent.connections))
         for connection in sent.connections:
-            print(connection, collocation_ids, sent.connections, sent.collocations)
             sql = """insert or ignore into Conn (predicate, object) 
                      values(?, ?)
                      """
@@ -465,10 +458,11 @@ class DBCtx:
         self.database.commit()
 
     @db_api
-    def get_or_insert_word(self, word: str) -> WordID:
-        word = word.lower()
-        word = ling.Word.create(word)
-
+    def get_or_insert_word(self, word_str: str) -> WordID:
+        if not word_str:
+            logging.warning("Empty word supplied to get_or_insert_word")
+        word_str = word_str.lower()
+        word = ling.Word.create(word_str)
         if word.initial_form is not None:
             initial_form_id = self.get_or_insert_word(word.initial_form)
         else:
@@ -490,12 +484,12 @@ class DBCtx:
         sg = self.get_semantic_group_id_by_name(name)
         if sg:
             logging.warning("Semantic group %s is already defined (id %d)", name, sg)
-            return sg
-
-        sql = """insert into semantic_group (name) values (?)"""
-        self.execute(sql, name)
-        sg = self.get_semantic_group_id_by_name(name)
-        assert sg is not None and sg
+        else:
+            sql = """insert into semantic_group (name) values (?)"""
+            self.execute(sql, name)
+            sg = self.get_semantic_group_id_by_name(name)
+            assert sg is not None and sg
+            logging.info("Inserted semantic group %s" % name)
         return sg
         
     @db_api 
@@ -504,8 +498,9 @@ class DBCtx:
         sg = self.get_semantic_group(id_)
         if sg is None:
             logging.error("Semantic group %d does nto exist" % id_)
-        sql = """delete from semantic_group where id = (?)"""
-        self.execute(sql, id_)
+        else:
+            sql = """delete from semantic_group where id = (?)"""
+            self.execute(sql, id_)
 
     @db_api
     def get_words_with_initial_form(self, word_id: WordID) -> List[WordID]:
@@ -523,20 +518,61 @@ def test_db_ctx():
 
         predicate = ctx.add_semantic_group("Предикат")
         object_ = ctx.add_semantic_group("Объект")
+        agent = ctx.add_semantic_group("Агент")
+        instrument = ctx.add_semantic_group("Инструмент")
+        locative = ctx.add_semantic_group("Локатив")
+        weather = ctx.add_semantic_group("Погодные условия")
+        height = ctx.add_semantic_group("Высота")
+        regime = ctx.add_semantic_group("Режим")
+        angle = ctx.add_semantic_group("Угол наклона")
+        speed = ctx.add_semantic_group("Скорость")
 
-        text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
-        text_ctx = ling.TextCtx()
-        text_ctx.init_for_text(text)
+        sentence = ling.SentenceCtx()
+        sentence.init_from_text("Лётчик пилотировал самолет боковой ручкой управления на аэродроме с нежестким покрытием в плохую погоду.")
+        sentence.mark_words([0], agent)
+        sentence.mark_words([1], predicate)
+        sentence.mark_words([2], object_)
+        sentence.mark_words([3, 4, 5, 6], instrument)
+        sentence.mark_words([7, 8, 9, 10, 11], locative)
+        sentence.mark_words([12, 13], weather)
+        ctx.add_or_update_sentence_record(sentence)
 
-        sentence1 = text_ctx.start_sentence_edit(10)
-        sentence1.add_collocation([0, 1, 2], object_)
-        sentence1.mark_text_part(20, 40, predicate)
-        sentence1.make_connection(0, 1)
+        sentence.init_from_text("Робот пилотировал корабль на базу «Север».")
+        sentence.mark_words([0], agent)
+        sentence.mark_words([1], predicate)
+        sentence.mark_words([2], object_)
+        sentence.mark_words([3, 4, 5], locative)
+        ctx.add_or_update_sentence_record(sentence)
 
-        sentence2 = text_ctx.start_sentence_edit(80)
+        sentence.init_from_text("Пилотировать самолёт, строго придерживаясь зоны пилотирования.")
+        sentence.mark_words([0], predicate)
+        sentence.mark_words([1], agent)
+        # sentence.mark_words([2, 3, 4, 5], )
+        ctx.add_or_update_sentence_record(sentence)
 
-        ctx.add_or_update_sentence_record(sentence1)
-        ctx.add_or_update_sentence_record(sentence2)
+        sentence.init_from_text("Независимо от метеоусловий и видимости производить фигуры высшего пилотажа на высоте 13.000 фунтов.")
+        sentence.mark_words([0, 1, 2, 3, 4], weather)
+        sentence.mark_words([5], predicate)
+        sentence.mark_words([6, 7, 8], object_)
+        sentence.mark_words([9, 10, 11, 12], height)
+        ctx.add_or_update_sentence_record(sentence)
+
+        sentence.init_from_text("Взлёт производить на взлётном режиме работы двигателей с закрылками, выпущенными на 20° и 10°.");
+        sentence.mark_words([0], object_)
+        sentence.mark_words([1], predicate)
+        sentence.mark_words([3, 4, 5, 6, 7, 8], regime)
+        sentence.mark_words([11, 12, 13], angle)
+        ctx.add_or_update_sentence_record(sentence)
+
+        sentence.init_from_text("Дальнейший полёт производить на скорости 380-420 км/ч на высоте ближайшего эшелона.")
+        sentence.mark_words([0, 1], object_)
+        sentence.mark_words([2], predicate)
+        sentence.mark_words([4, 5, 6, 7, 8], speed)
+        sentence.mark_words([10, 11, 12], height)
+        ctx.add_or_update_sentence_record(sentence)
+
+
+
     except Exception:
         traceback.print_exc()
     # os.remove(db_name)

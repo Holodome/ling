@@ -1,7 +1,3 @@
-"""
-High-level application interface
-"""
-
 import dataclasses
 import ling.db_model as db
 import ling.ling as ling
@@ -51,7 +47,7 @@ class AppCtx:
         ling_collocations = []
         for db_col in db_collocations:
             col_words = [self.db.get_word(word_id) for word_id in db_col.words]
-            word_idxs = [sent_ctx.words.index(word.word) for word in col_words]
+            word_idxs = [sent_ctx.word_idx(word.word) for word in col_words]
             ling_col = ling.Collocation(word_idxs, ling.SemanticGroup(db_col.semantic_group_id))
             ling_collocations.append(ling_col)
 
@@ -81,6 +77,15 @@ class AppCtx:
         result = []
         for coll in colls:
             result.extend(coll.words)
+        return result
+
+    def get_connection_ids_with_word_id(self, id_: db.WordID) -> List[db.ConnID]:
+        # @TODO(hl): Speed
+        collocation_ids = self.db.get_collocation_ids_with_word_id(id_)
+        result = []
+        for id_ in collocation_ids:
+            coll_conns = self.db.get_connection_ids_with_coll_id(id_)
+            result.extend(coll_conns)
         return result
 
 

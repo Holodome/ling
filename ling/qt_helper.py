@@ -1,3 +1,7 @@
+"""
+File containing some helper functions
+
+"""
 from PyQt5 import QtWidgets
 
 
