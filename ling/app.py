@@ -69,6 +69,9 @@ class AppCtx:
         #  ids?
         return self.db.get_word(word.initial_form_id) if word.initial_form_id is not None else word
 
+    def get_initial_form_by_id(self, word_id: db.WordID) -> db.Word:
+        return self.get_initial_form(self.db.get_word(word_id))
+
     def get_words_of_sem_group(self, sg: db.SemanticGroupID) -> List[db.WordID]:
         # @TODO(hl): SPEED
         coll_ids = self.db.get_collocations_of_sem_group(sg)
@@ -86,6 +89,11 @@ class AppCtx:
         for id_ in collocation_ids:
             coll_conns = self.db.get_connection_ids_with_coll_id(id_)
             result.extend(coll_conns)
+        return result
+
+    def get_predicate_id(self) -> db.SemanticGroupID:
+        result = self.db.get_semantic_group_id_by_name("Предикат")
+        assert result
         return result
 
 

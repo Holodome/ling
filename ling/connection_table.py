@@ -11,9 +11,10 @@ import ling.qt_helper as qt_helper
 
 
 class ConnectionTableWidget(QtWidgets.QMainWindow):
-    COLUMN_NAMES = ["Предикат", "Октант"]
+    COLUMN_NAMES = ["Предикат", "Октант", "Семантическая группа"]
     PRED_COL = 0x0
     OCT_COL = 0x1
+    SEM_COL = 0x2
 
     def __init__(self, conns: List[db.Connection], *args):
         logging.info("Creating ConnectionTableWidget")
@@ -27,10 +28,17 @@ class ConnectionTableWidget(QtWidgets.QMainWindow):
         self.table.setRowCount(len(conns))
         self.table.setColumnCount(len(self.COLUMN_NAMES))
         for idx, word in enumerate(conns):
-            item = QtWidgets.QTableWidgetItem(str(word.predicate))
+            pred = app.get().db.get_collocation(word.predicate)
+            item = QtWidgets.QTableWidgetItem(str(pred.text))
             self.table.setItem(idx, self.PRED_COL, item)
-            item = QtWidgets.QTableWidgetItem(str(word.object_))
+
+            obj = app.get().db.get_collocation(word.object_)
+            item = QtWidgets.QTableWidgetItem(str(obj.text))
             self.table.setItem(idx, self.OCT_COL, item)
+
+            sg = app.get().db.get_semantic_group(obj.semantic_group_id)
+            item = QtWidgets.QTableWidgetItem(str(sg.name))
+            self.table.setItem(idx, self.SEM_COL, item)
         self.table.setHorizontalHeaderLabels(self.COLUMN_NAMES)
         self.table.resizeColumnsToContents()
         self.table.resizeRowsToContents()

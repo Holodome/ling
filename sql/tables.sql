@@ -20,7 +20,8 @@ create table if not exists word (
 create table if not exists collocation (
     id integer primary key,
     semantic_group_id integer not null,
-    word_hash text not null, -- see db_model.py
+    word_hash text not null,
+    words_text text not null,
 
     constraint uniq unique (
         semantic_group_id,
@@ -60,8 +61,7 @@ create table if not exists conn ( -- connection, but it is reserved
 
 create table if not exists sentence (
     id integer primary key,
-    contents TEXT not null UNIQUE,
-    word_count integer not null
+    contents TEXT not null UNIQUE
 );
 
 create table if not exists sentence_collocation_junction (

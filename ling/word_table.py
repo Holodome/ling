@@ -81,7 +81,47 @@ class WordTableWidget(QtWidgets.QMainWindow):
                 init_word = app.get().db.get_word(selected_word.initial_form_id)
                 qt_helper.create_widget_window(WordTableWidget([init_word]), self)
 
+    def find_same_root_colls(self):
+        from ling.collocation_table import CollocationTableWidget
+        selected = qt_helper.table_get_selected_rows(self.table)
+        if selected:
+            selected = selected[0]
+            selected_word = self.words[selected]
+            initial_form = app.get().get_initial_form(selected_word)
+            word_ids = app.get().db.get_words_with_initial_form(initial_form.id) + [initial_form.id]
+            collocation_ids = set()
+            for id_ in word_ids:
+                collocation_ids.union(set(app.get().db.get_collocation_ids_with_word_id(id_)))
+            collocation_ids = list(collocation_ids)
+            # collocation_ids = list(app.get().db.get_collocation_ids_with_word_id(word_id) for word_id in word_ids)
+            collocations = app.get().get_collocations_from_ids(collocation_ids)
+            qt_helper.create_widget_window(CollocationTableWidget(collocations), self)
+
+    def find_same_root_conns(self):
+        from ling.connection_table import ConnectionTableWidget
+        selected = qt_helper.table_get_selected_rows(self.table)
+        if selected:
+            selected = selected[0]
+            selected_word = self.words[selected]
+            initial_form = app.get().get_initial_form(selected_word)
+            word_ids = app.get().db.get_words_with_initial_form(initial_form.id) + [initial_form.id]
+            collocations = list({app.get().db.get_collocation_ids_with_word_id(word_id) for word_id in word_ids})
+            connection_ids = list({app.get().db.get_connection_ids_with_coll_id(coll_id) for coll_id in collocations})
+            connections = app.get().get_connections_from_ids(connection_ids)
+            qt_helper.create_widget_window(ConnectionTableWidget(connections), self)
+
+    def find_same_root_sents(self):
+        raise NotImplementedError
+
+    def find_conns(self):
+        raise NotImplementedError
+
     def init_ui(self):
         self.coll_btn.clicked.connect(self.find_coll)
         self.sent_btn.clicked.connect(self.find_sent)
         self.same_root_btn.clicked.connect(self.find_same_root)
+        self.same_root_colls_btn.clicked.connect(self.find_same_root_colls)
+        self.same_root_conns_btn.clicked.connect(self.find_same_root_conns)
+        self.same_root_sents_btn.clicked.connect(self.find_same_root_sents)
+        self.conns_btn.clicked.connect(self.find_conns)
+

@@ -1,4 +1,6 @@
-import os
+"""
+File containing functions forming an API for interacting with SQL database
+"""
 import sqlite3
 import traceback
 import typing
@@ -58,28 +60,43 @@ SentenceID = typing.NewType("SentenceID", int)
 #
 @dataclasses.dataclass(frozen=True)
 class SemanticGroup:
+    """Semantic group is an object that simulates an expandable enumeration of linguistic semantic groups
+       Semantic groups are linked with collocations and are used in connections"""
     id: SemanticGroupID
+    # Name in russian, case is undefined
     name: str
 
 
 @dataclasses.dataclass(frozen=True)
 class Word:
+    """Word is a description of some abstract word"""
+    # @NOTE(hl): Currently numbers are also words
     id: WordID
+    # ID of initial form if word has some, otherwise None
     initial_form_id: Union[WordID, None]
+    # Some additional info, this may to be actually useful
     part_of_speech: ling.PartOfSpeech
+    # Word for in russian, lowercase
     word: str
 
 
 @dataclasses.dataclass(frozen=True)
 class Collocation:
+    """Collocation - combination of words with a semantic group attached to it"""
     id: CollocationID
+    # What semantic group does this collocation has
     semantic_group_id: SemanticGroupID
+    # All words in collocation in correct order
     words: List[WordID]
+    # String used to ensure uniqueness of collocation in DB - this can be replaced with a proper hash functions
     words_hash: int
+    # Words like they are met in sentence
+    text: str
 
 
 @dataclasses.dataclass(frozen=True)
 class Connection:
+    """Connection is a combination of predicate collocation and collocation of some other kind"""
     id: ConnID
     predicate: CollocationID
     object_: CollocationID
@@ -87,46 +104,32 @@ class Connection:
 
 @dataclasses.dataclass(frozen=True)
 class Sentence:
+    """Sentence record like it is edited by user. Sentence is a connection of collocations, connections and words
+       with same word set (or text)"""
     id: SentenceID
+    # Text of sentence
     contents: str
-    word_count: int
+    # Set of collocations
     collocations: List[CollocationID]
+    # Set of connections
     connections: List[ConnID]
+    # Set of words
     words: List[WordID]
 
 
 @dataclasses.dataclass
 class DBCtx:
+    """
+    Class encapsulating all methods of directly interacting with DB.
+    It is made a dataclass to make interface function calls always work,
+    even if the database itself is not present/open
+    Instead, error message is given on improper function calls
+    """
+    # sqlite file name
     filename: str = ""
     database: sqlite3.Connection = None
     cursor: sqlite3.Cursor = None
-
-    def __del__(self):
-        if self.cursor is not None:
-            self.database.commit()
-            self.cursor.close()
-        if self.database is not None:
-            self.database.close()
-
-    def execute(self, sql, *args):
-        """Wrapper for common sql execute idiom
-           Returns list with elements either being tuples of results if there are multiple return values,
-           or individual results
-
-           Additionally has convenience of no need to form tuple for arguments"""
-        result = list(self.cursor.execute(sql, tuple(args)))
-        if result:
-            if len(result[0]) == 1:
-                result = unwrap(result)
-        return result
-
-    def abstract_sql_resource_get(self, query, id_):
-        if id_ is not None:
-            query += " where id = (?)"
-            values = self.execute(query, id_)
-        else:
-            values = self.execute(query)
-        return values
+    # @TODO(hl): Backups
 
     def create_or_open(self, filename):
         self.filename = filename
@@ -135,15 +138,54 @@ class DBCtx:
         self.create_tables()
         logging.info("Opened DB %s", filename)
 
+    def __del__(self):
+        if self.cursor is not None:
+            self.database.commit()
+            self.cursor.close()
+        if self.database is not None:
+            self.database.close()
+
+    def execute(self, sql: str, *args):
+        """
+        Wrapper for common sql execute idiom
+        Returns list with elements either being tuples of results if there are multiple return values,
+        or individual results
+
+        Additionally has convenience of no need to form tuple for arguments, because in most cases
+        arguments are passed as individual elements rather than tuples
+        """
+        result = list(self.cursor.execute(sql, tuple(args)))
+        if result:
+            if len(result[0]) == 1:
+                result = unwrap(result)
+        return result
+
+    def abstract_sql_resource_get(self, query: str, id_):
+        """
+        Helper function for querying some value from db.
+        They are written in a way that supports both getting all values and value of specific id
+        In order to make that work this method is used, which does query in a way way that supports that behaviour
+        If id_ is None, all resources are get, otherwise single one with this id
+        """
+        if id_ is not None:
+            query += " where id = (?)"
+            values = self.execute(query, id_)
+        else:
+            values = self.execute(query)
+        return values
+
     @db_api
     def create_tables(self):
-        """Executes table creating script"""
+        """
+        Executes table creating script
+        """
         tables_create_query = open("sql/tables.sql").read()
         self.cursor.executescript(tables_create_query)
         self.database.commit()
 
     def get_semantic_group_internal(self, id_: Union[SemanticGroupID, None] = None) \
             -> List[SemanticGroup]:
+        """Helper function for getting semantic groups"""
         sql = """select id, name from semantic_group"""
         values = self.abstract_sql_resource_get(sql, id_)
         logging.info("Queried %d semantic groups", len(values))
@@ -155,6 +197,7 @@ class DBCtx:
 
     def get_word_internal(self, id_: Union[WordID, None] = None) \
             -> List[Word]:
+        """Helper function for getting words"""
         sql = "select id, initial_form_id, word, part_of_speech, has_initial_form from word"
         values = self.abstract_sql_resource_get(sql, id_)
         logging.info("Queried %d derivative forms", len(values))
@@ -169,11 +212,12 @@ class DBCtx:
 
     def get_collocations_internal(self, id_: Union[CollocationID, None] = None) \
             -> List[Collocation]:
-        sql = "select id, semantic_group_id, word_hash from Collocation"
+        """Helper function for getting collocations"""
+        sql = "select id, semantic_group_id, word_hash, words_text from Collocation"
         values = self.abstract_sql_resource_get(sql, id_)
         logging.info("Queried %d collocations", len(values))
         result = []
-        for id_, kind, word_hash in values:
+        for id_, kind, word_hash, text in values:
             sql = """select word_id, idx from collocation_junction
                      where collocation_id = (?)"""
             word_ids = self.execute(sql, id_)
@@ -182,12 +226,14 @@ class DBCtx:
             coll = Collocation(CollocationID(id_),
                                SemanticGroupID(kind),
                                word_ids,
-                               word_hash)
+                               word_hash,
+                               text)
             result.append(coll)
         return result
 
     def get_connections_internal(self, id_: Union[ConnID, None] = None) \
             -> List[Connection]:
+        """Helper function for getting connections"""
         sql = "select id, predicate, object from Conn"
         values = self.abstract_sql_resource_get(sql, id_)
         logging.info("Queried %d connections", len(values))
@@ -201,25 +247,25 @@ class DBCtx:
 
     def get_sentences_internal(self, id_: Union[SentenceID, None] = None) \
             -> List[Sentence]:
-        sql = "select id, contents, word_count from Sentence"
+        """Helper function for getting sentences"""
+        sql = "select id, contents from Sentence"
         values = self.abstract_sql_resource_get(sql, id_)
         logging.info("Queried %d sentences", len(values))
 
         result = []
-        for id_, contents, word_count in values:
+        for id_, contents in values:
             sql = """select conn_id from Sentence_Connection_Junction
-                                     where sentence_id = (?)"""
+                     where sentence_id = (?)"""
             conn_ids = self.execute(sql, id_)
             sql = """select collocation_id from Sentence_Collocation_Junction
-                                 where sentence_id = (?)"""
+                     where sentence_id = (?)"""
             coll_ids = self.execute(sql, id_)
             sql = """select idx, word_id from sentence_word_junction
-                             where sentence_id = (?)"""
+                     where sentence_id = (?)"""
             words_serialized = self.execute(sql, id_)
             words = list(flatten_by_idx(sorted(words_serialized, key=lambda it: it[0]), 1))
             sent = Sentence(SentenceID(id_),
                             contents,
-                            word_count,
                             coll_ids,
                             conn_ids,
                             words)
@@ -257,6 +303,8 @@ class DBCtx:
         result = self.get_semantic_group_internal(id_)
         if not result:
             logging.error("Failed to query semantic group %d" % id_)
+        else:
+            logging.debug(result)
         return result[0] if result else None
 
     @db_api
@@ -300,14 +348,17 @@ class DBCtx:
         return result[0] if result else None
 
     @db_api
-    def get_word_id_by_word(self, word: str) -> List[WordID]:
+    def get_word_id_by_word(self, word: str) -> WordID:
+        """Returns word id by its string"""
         sql = """select id from word where word = (?)"""
         deriv = self.execute(sql, word)
         deriv = list(map(WordID, deriv))
-        return deriv
+        assert len(deriv) <= 1
+        return deriv[0]
 
     @db_api
     def get_word_ids_by_word_part(self, word_part: str) -> List[WordID]:
+        """Returns word ids where word_part is met"""
         sql = "select id from word where form LIKE (?)"
         deriv = self.execute(sql, word_part)
         deriv = list(map(WordID, deriv))
@@ -315,6 +366,7 @@ class DBCtx:
 
     @db_api
     def get_collocation_ids_with_word_id(self, id_: WordID) -> List[CollocationID]:
+        """Returns all collocations containing word"""
         sql = """select distinct collocation_id from Collocation_Junction
                  where word_id = (?)"""
         col_ids = self.execute(sql, id_)
@@ -323,35 +375,34 @@ class DBCtx:
 
     @db_api
     def get_connection_ids_with_coll_id_object(self, id_: CollocationID) -> List[ConnID]:
+        """Return all connections where object is given collocation"""
         sql = """select id from conn where object = (?)"""
         ids0 = self.execute(sql, id_)
         return ids0
 
     @db_api
     def get_connection_ids_with_coll_id_predicate(self, id_: CollocationID) -> List[ConnID]:
+        """Return all connections where predicate is given collocation"""
         sql = """select id from conn where predicate = (?)"""
         ids1 = self.execute(sql, id_)
         return ids1
 
     @db_api
     def get_connection_ids_with_coll_id(self, id_: CollocationID) -> List[ConnID]:
+        """Return all connections with given collocation"""
         return list(set(self.get_connection_ids_with_coll_id_object(id_) +
                         self.get_connection_ids_with_coll_id_predicate(id_)))
 
     @db_api
     def get_sentences_id_by_word_id(self, id_: WordID) -> List[SentenceID]:
-        # @TODO(hl): Speed
-        coll_ids = self.get_collocation_ids_with_word_id(id_)
-        sql = """select sentence_id from Sentence_Collocation_Junction 
-                 where collocation_id = (?)"""
-        result = []
-        for coll_id in coll_ids:
-            coll_sent_ids = self.execute(sql, coll_id)
-            result.extend(coll_sent_ids)
+        """Returns all sentences with word"""
+        sql = """select distinct sentence_id from sentence_word_junction where word_id = (?)"""
+        result = self.execute(sql, id_)
         return result
 
     @db_api
     def get_semantic_group_id_by_name(self, name: str) -> SemanticGroupID:
+        """Returns semantic group id by name"""
         sql = """select id from semantic_group where name = (?)"""
         groups = self.execute(sql, name)
         result = 0
@@ -361,12 +412,14 @@ class DBCtx:
 
     @db_api
     def get_sentences_id_by_word(self, word: str) -> List[SentenceID]:
+        """Returns sentences where word is met in text"""
         sql = """select id from Sentence where contents LIKE '%' || ? || '%' """
         sentences = self.execute(sql, word)
         return sentences
 
     @db_api
     def get_collocations_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
+        """Returns all collocation that have given semantic group"""
         logging.info("get_collocations_of_sem_group %d" % sg)
         sql = """select id from collocation where semantic_group_id = (?)"""
         result = self.execute(sql, sg)
@@ -374,12 +427,13 @@ class DBCtx:
 
     @db_api
     def add_or_update_sentence_record(self, sent: ling.SentenceCtx):
+        """Inserts sentence into database"""
         logging.info("Updating sentence %s (wc %d)", sent.text, len(sent.words))
         #
         # add sentence record
         #
-        sql = "insert OR IGNORE into Sentence (contents, word_count) values (?, ?)"
-        self.execute(sql, sent.text, len(sent.words))
+        sql = "insert OR IGNORE into Sentence (contents) values (?)"
+        self.execute(sql, sent.text)
 
         sql = "select id from Sentence where contents = (?)"
         sentence_id = safe_unpack(self.execute(sql, sent.text))
@@ -413,6 +467,7 @@ class DBCtx:
         for idx, collocation in enumerate(sent.collocations):
             collocation_words = list(map(lambda it: sent.words[it], collocation.word_idxs))
             word_hash = " ".join(collocation_words)
+            word_hash = word_hash.lower()
             # First of all, try to find collocation with same words
             # @HACK(hl): Because it is complicated and slow to do checks for all junctions, we use word hash here
             #  This way we can directly compare it
@@ -420,8 +475,9 @@ class DBCtx:
             collocation_id = self.execute(sql, word_hash)
             if not collocation_id:
                 logging.info("Inserting collocation %d %s" % (collocation.semantic_group, str(collocation_words)))
-                sql = """insert into collocation (semantic_group_id, word_hash) values (?, ?)"""
-                self.execute(sql, collocation.semantic_group, word_hash)
+                sql = """insert into collocation (semantic_group_id, word_hash, words_text) values (?, ?, ?)"""
+                # @TODO(hl): Proper words_text
+                self.execute(sql, collocation.semantic_group, word_hash, word_hash)
                 sql = """select id from collocation
                          where rowid = ( select last_insert_rowid() )"""
                 collocation_id = safe_unpack(self.execute(sql))
@@ -504,12 +560,26 @@ class DBCtx:
 
     @db_api
     def get_words_with_initial_form(self, word_id: WordID) -> List[WordID]:
+        # Returns words with given initial form, not including initial form
         sql = """select id from word where initial_form_id = (?)"""
         word_ids = self.execute(sql, word_id)
         return word_ids
 
 
 def test_db_ctx():
+    def make_def_conns(pred_id, ctx):
+        found_predicate_idx = -1
+        for i, col in enumerate(ctx.collocations):
+            if col.semantic_group == pred_id:
+                found_predicate_idx = i
+                break
+        if found_predicate_idx != -1:
+            for i, col in enumerate(ctx.collocations):
+                if i == found_predicate_idx or col.semantic_group == pred_id:
+                    continue
+
+                ctx.make_connection(pred_id, i)
+
     db_name = "test.sqlite"
 
     try:
@@ -535,6 +605,7 @@ def test_db_ctx():
         sentence.mark_words([3, 4, 5, 6], instrument)
         sentence.mark_words([7, 8, 9, 10, 11], locative)
         sentence.mark_words([12, 13], weather)
+        make_def_conns(predicate, sentence)
         ctx.add_or_update_sentence_record(sentence)
 
         sentence.init_from_text("Робот пилотировал корабль на базу «Север».")
@@ -542,12 +613,14 @@ def test_db_ctx():
         sentence.mark_words([1], predicate)
         sentence.mark_words([2], object_)
         sentence.mark_words([3, 4, 5], locative)
+        make_def_conns(predicate, sentence)
         ctx.add_or_update_sentence_record(sentence)
 
         sentence.init_from_text("Пилотировать самолёт, строго придерживаясь зоны пилотирования.")
         sentence.mark_words([0], predicate)
         sentence.mark_words([1], agent)
         # sentence.mark_words([2, 3, 4, 5], )
+        make_def_conns(predicate, sentence)
         ctx.add_or_update_sentence_record(sentence)
 
         sentence.init_from_text("Независимо от метеоусловий и видимости производить фигуры высшего пилотажа на высоте 13.000 фунтов.")
@@ -555,6 +628,7 @@ def test_db_ctx():
         sentence.mark_words([5], predicate)
         sentence.mark_words([6, 7, 8], object_)
         sentence.mark_words([9, 10, 11, 12], height)
+        make_def_conns(predicate, sentence)
         ctx.add_or_update_sentence_record(sentence)
 
         sentence.init_from_text("Взлёт производить на взлётном режиме работы двигателей с закрылками, выпущенными на 20° и 10°.");
@@ -562,6 +636,7 @@ def test_db_ctx():
         sentence.mark_words([1], predicate)
         sentence.mark_words([3, 4, 5, 6, 7, 8], regime)
         sentence.mark_words([11, 12, 13], angle)
+        make_def_conns(predicate, sentence)
         ctx.add_or_update_sentence_record(sentence)
 
         sentence.init_from_text("Дальнейший полёт производить на скорости 380-420 км/ч на высоте ближайшего эшелона.")
@@ -569,10 +644,8 @@ def test_db_ctx():
         sentence.mark_words([2], predicate)
         sentence.mark_words([4, 5, 6, 7, 8], speed)
         sentence.mark_words([10, 11, 12], height)
+        make_def_conns(predicate, sentence)
         ctx.add_or_update_sentence_record(sentence)
-
-
-
     except Exception:
         traceback.print_exc()
     # os.remove(db_name)

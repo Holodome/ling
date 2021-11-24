@@ -163,6 +163,19 @@
     <string>Сохранить</string>
    </property>
   </widget>
+  <widget class="QPushButton" name="make_def_conns_btn">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>455</y>
+     <width>111</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Сделать связи</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>

@@ -47,7 +47,7 @@ class SentenceTableWidget(QtWidgets.QMainWindow):
             item = QtWidgets.QTableWidgetItem(sent_text)
             self.table.setItem(idx, self.TEXT_COL, item)
 
-            item = QtWidgets.QTableWidgetItem(str(sent.word_count))
+            item = QtWidgets.QTableWidgetItem(str(len(sent.words)))
             self.table.setItem(idx, self.WORD_COUNT_COL, item)
 
             item = QtWidgets.QTableWidgetItem(str(len(sent.collocations)))

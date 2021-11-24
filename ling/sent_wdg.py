@@ -48,6 +48,21 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         html = self.ctx.get_funny_html()
         self.text_view.setHtml(html)
 
+    def make_def_conns(self):
+        predicate_id = app.get().get_predicate_id()
+        found_predicate_idx = -1
+        for i, col in enumerate(self.ctx.collocations):
+            if col.semantic_group == predicate_id:
+                found_predicate_idx = i
+                break
+        if found_predicate_idx != -1:
+            for i, col in enumerate(self.ctx.collocations):
+                if i == found_predicate_idx or col.semantic_group == predicate_id:
+                    continue
+
+                self.ctx.make_connection(predicate_id, i)
+        self.generate_view()
+
     def init_ui(self):
         self.mark_btn.clicked.connect(self.do_mark)
         self.mark_soft_btn.clicked.connect(self.do_mark_soft)
@@ -57,6 +72,7 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         self.make_con_btn.clicked.connect(self.do_make_con)
         self.delete_con_btn.clicked.connect(self.do_delete_con)
         self.save_btn.clicked.connect(self.do_save)
+        self.make_def_conns_btn.clicked.connect(self.make_def_conns)
         semantic_groups = app.get().db.get_all_semantic_groups()
         semantic_group_names = [group.name for group in semantic_groups]
         for kind_name in semantic_group_names:
@@ -139,21 +155,3 @@ class SentenceEditWidget(QtWidgets.QMainWindow):
         logging.info("Saving sentence")
         app.AppCtx.get().db.add_or_update_sentence_record(self.ctx)
         logging.info("Sentence saved")
-
-
-def test_sentence_edit():
-    import sys
-
-    text = "Летчик пилотировал самолет боковой ручкой управления в плохую погоду. Мама мыла Милу мылом."
-    text_ctx = ling.TextCtx()
-    text_ctx.init_for_text(text)
-
-    sentence1 = text_ctx.start_sentence_edit(10)
-    sentence1.add_collocation([0, 1, 2], ling.LingKind.OBJECT)
-    sentence1.mark_text_part(20, 40, ling.LingKind.PREDICATE)
-
-    app = QtWidgets.QApplication(sys.argv)
-    exec = SentenceEditWidget(sentence1)
-    exec.show()
-    sys.exit(app.exec_())
-
