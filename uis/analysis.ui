@@ -177,9 +177,15 @@
    <property name="sortingEnabled">
     <bool>false</bool>
    </property>
+   <property name="wordWrap">
+    <bool>true</bool>
+   </property>
    <property name="columnCount">
     <number>2</number>
    </property>
+   <attribute name="horizontalHeaderCascadingSectionResizes">
+    <bool>false</bool>
+   </attribute>
    <column>
     <property name="text">
      <string>Сочетание</string>

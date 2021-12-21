@@ -223,7 +223,7 @@ class Sentence:
         """Makes con with collocations which indices given in list
            If collocation already is connected, overwrite old con"""
         col_idxs = (pred_idx, actant_idx)
-        pred_sg = self.get_pred_sg()
+        pred_sg = self.session.get_pred_sg()
         assert self.cols[pred_idx].sg == pred_sg and \
                self.cols[actant_idx].sg != pred_sg
 
@@ -237,6 +237,11 @@ class Sentence:
 
         con = Connection(pred_idx, actant_idx)
         new_cons.append(con)
+
+    def make_con_from_list(self, idxs: list[int]):
+        """Makes connection based on collocation indices from list.
+           Predicate must be in the list. If several predicates found, ones other than first are not connected"""
+        raise NotImplementedError
 
     def is_default_cons_makeable(self):
         """Consider default cons makeable if predicate count is one"""
@@ -295,3 +300,14 @@ class Sentence:
                     html += self.non_word_parts[non_word_idx]
                     non_word_idx += 1
         return html
+
+    def remove_cons(self, idxs: list[int]):
+        """Deletes connections of given indices"""
+        raise NotImplementedError
+
+    def remove_words_from_col(self, col_idx: int, word_idxs: list[int]):
+        """Removes given word indexes from collocation.
+           Indices are for collocation word list, not for the sentence words
+           If number of words deleted equals total number of words in collocation,
+           delete collocation instead"""
+        raise NotImplementedError

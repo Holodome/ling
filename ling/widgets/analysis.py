@@ -1,3 +1,4 @@
+import PyQt5.Qt
 from PyQt5 import QtWidgets, uic
 
 import functools
@@ -5,8 +6,10 @@ import logging
 
 import ling.sentence
 import ling.text
+import ling.qt_helper
 from ling.session import Session
-
+from ling.widgets.change_sg_col import ChangeSGColDialog
+from ling.widgets.delete_words_col import DeleteWordsColDialog
 
 COL_TABLE_HEADERS = ["Сочетание", "Семантическая группа"]
 CON_TABLE_HEADERS = ["Предикат", "Актант"]
@@ -42,7 +45,6 @@ def require(*, session: bool = False, text: bool = False, sent: bool = False):
 
 class AnalysisWidget(QtWidgets.QMainWindow):
     def __init__(self, session: Session, parent=None):
-        logging.info("Creating SentenceEditWidget")
         super().__init__(parent)
         self.session = session
         self.sent_edit: ling.sentence.Sentence = None
@@ -52,9 +54,17 @@ class AnalysisWidget(QtWidgets.QMainWindow):
         uic.loadUi("uis/analysis.ui", self)
         self.init_ui()
 
+        self.init_for_text(open("examples/block.txt").read())
+
     def init_ui(self):
         if self.session.connected:
             self.init_for_db(self.session.db.filename)
+
+        header = self.col_table.horizontalHeader()
+        # header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+
+        header = self.con_table.horizontalHeader()
+        # header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
 
         self.choose_sent_btn.clicked.connect(lambda: self.choose_sent())
         self.load_db_btn.clicked.connect(lambda: self.load_db())
@@ -160,49 +170,51 @@ class AnalysisWidget(QtWidgets.QMainWindow):
 
     @require(sent=True)
     def make_con(self):
-        if not self.session.connected:
-            return
-        raise NotImplementedError
+        selected = ling.qt_helper.table_get_selected_rows(self.col_table)
+        self.sent_edit.make_con_from_list(selected)
+        self.generate_sent_view()
+
+    @require(sent=True)
+    def change_sg_col(self):
+        selected = ling.qt_helper.table_get_selected_rows(self.col_table)
+        if selected:
+            selected = selected[0]
+            dialog = ChangeSGColDialog(self.session, self.sent_edit.get_pretty_string_with_words_for_col(selected),
+                                       self.sent_edit.cols[selected].sg, self)
+            if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
+                dialog_selected = dialog.sg_cb.currentIndex()
+                self.sent_edit.change_semantic_group_for_col(selected, dialog_selected)
+                self.generate_sent_view()
+
+    @require(sent=True)
+    def change_words_col(self):
+        selected = ling.qt_helper.table_get_selected_rows(self.col_table)
+        if selected:
+            selected = selected[0]
+            dialog = DeleteWordsColDialog(self.session, self.sent_edit.get_pretty_string_with_words_for_col(selected),
+                                          [self.sent_edit.words[it] for it in self.sent_edit.cols[selected].word_idxs],
+                                          self)
+            if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
+                dialog_selected = [it.row() for it in dialog.word_list.selectionModel().selectedIndexes()]
+                self.sent_edit.remove_words_from_col(selected, dialog_selected)
 
     @require(sent=True)
     def add_new_sg(self):
-        if not self.session.connected:
-            return
         raise NotImplementedError
 
     @require(sent=True)
     def automake_con(self):
-        if not self.session.connected:
-            return
-        raise NotImplementedError
-
-    @require(sent=True)
-    def change_sg_col(self):
-        if not self.session.connected:
-            return
-        raise NotImplementedError
-
-    @require(sent=True)
-    def change_words_col(self):
-        if not self.session.connected:
-            return
         raise NotImplementedError
 
     @require(sent=True)
     def delete_col(self):
-        if not self.session.connected:
-            return
         raise NotImplementedError
 
     @require(sent=True)
     def delete_con(self):
-        if not self.session.connected:
-            return
         raise NotImplementedError
 
     @require(sent=True)
     def union_col(self):
-        if not self.session.connected:
-            return
         raise NotImplementedError
 
