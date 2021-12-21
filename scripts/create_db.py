@@ -1,4 +1,4 @@
-from ling.db_model import *
+from ling.db import *
 import traceback
 
 

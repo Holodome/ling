@@ -1,0 +1,208 @@
+from PyQt5 import QtWidgets, uic
+
+import functools
+import logging
+
+import ling.sentence
+import ling.text
+from ling.session import Session
+
+
+COL_TABLE_HEADERS = ["Сочетание", "Семантическая группа"]
+CON_TABLE_HEADERS = ["Предикат", "Актант"]
+
+
+def require(*, session: bool = False, text: bool = False, sent: bool = False):
+    if sent:
+        session = text = True
+    if text:
+        session = True
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            assert len(args) >= 1
+            self = args[0]
+            if session and not self.session.connected:
+                msg = QtWidgets.QErrorMessage(self)
+                msg.showMessage("Необходима открытая база данных")
+                return
+            if text and self.text_edit is None:
+                msg = QtWidgets.QErrorMessage(self)
+                msg.showMessage("Необходим открытый текст")
+                return
+            if sent and self.sent_edit is None:
+                msg = QtWidgets.QErrorMessage(self)
+                msg.showMessage("Необходимо выбранное предложение")
+                return
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+class AnalysisWidget(QtWidgets.QMainWindow):
+    def __init__(self, session: Session, parent=None):
+        logging.info("Creating SentenceEditWidget")
+        super().__init__(parent)
+        self.session = session
+        self.sent_edit: ling.sentence.Sentence = None
+        self.text_edit: ling.text.Text = None
+        self.sgs: list[tuple[str, int]] = []
+
+        uic.loadUi("uis/analysis.ui", self)
+        self.init_ui()
+
+    def init_ui(self):
+        if self.session.connected:
+            self.init_for_db(self.session.db.filename)
+
+        self.choose_sent_btn.clicked.connect(lambda: self.choose_sent())
+        self.load_db_btn.clicked.connect(lambda: self.load_db())
+        self.load_text_btn.clicked.connect(lambda: self.load_text())
+        self.make_col_btn.clicked.connect(lambda: self.make_col())
+        self.make_con_btn.clicked.connect(lambda: self.make_con())
+        self.add_new_sg_btn.clicked.connect(lambda: self.add_new_sg())
+        self.automake_con_btn.clicked.connect(lambda: self.automake_con())
+        self.change_sg_col_btn.clicked.connect(lambda: self.change_sg_col())
+        self.change_words_col_btn.clicked.connect(lambda: self.change_words_col())
+        self.delete_col_btn.clicked.connect(lambda: self.delete_col())
+        self.delete_con_btn.clicked.connect(lambda: self.delete_con())
+        self.union_col_btn.clicked.connect(lambda: self.union_col())
+
+    def init_for_db(self, filename: str):
+        self.db_filename_le.setText(filename)
+        cb = self.sg_cb
+        sgs = self.session.get_sg_list()
+        self.sgs = sgs
+        for name, _ in sgs:
+            cb.addItem(name)
+
+    def init_for_text(self, text_str: str):
+        self.text_edit = ling.text.Text(self.session, text_str)
+        self.text_field.setPlainText(text_str)
+
+    def init_for_sent(self, sent: str):
+        self.sent_edit = ling.sentence.Sentence(self.session, sent)
+        self.generate_sent_view()
+
+    def generate_col_table(self):
+        self.col_table.setRowCount(len(self.sent_edit.cols))
+        for idx, col in enumerate(self.sent_edit.cols):
+            pretty = self.sent_edit.get_pretty_string_with_words_for_col(idx)
+            sg_name = self.sgs[col.sg][0]
+            print(pretty, sg_name, idx, col)
+            col_it = QtWidgets.QTableWidgetItem(pretty)
+            sg_it = QtWidgets.QTableWidgetItem(sg_name)
+            self.col_table.setItem(idx, 0, col_it)
+            self.col_table.setItem(idx, 1, sg_it)
+
+    def generate_con_table(self):
+        self.con_table.setRowCount(len(self.sent_edit.cons))
+        for idx, con in enumerate(self.sent_edit.cons):
+            pred_pretty = self.sent_edit.get_pretty_string_with_words_for_col(con.predicate_idx)
+            actant_pretty = self.sent_edit.get_pretty_string_with_words_for_col(con.actant_idx)
+            col_it = QtWidgets.QTableWidgetItem(pred_pretty)
+            sg_it = QtWidgets.QTableWidgetItem(actant_pretty)
+            self.col_table.setItem(idx, 0, col_it)
+            self.col_table.setItem(idx, 1, sg_it)
+        self.con_table.resizeColumnsToContents()
+        self.con_table.resizeRowsToContents()
+
+    def generate_sent_view(self):
+        self.generate_col_table()
+        self.generate_con_table()
+        html = self.sent_edit.get_colored_html()
+        self.sent_field.setHtml(html)
+
+    def load_db(self):
+        if self.session.connected:
+            raise NotImplementedError
+
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open db", filter="*.sqlite")[0]
+        if filename:
+            self.session.init_for_db(filename)
+            self.init_for_db(filename)
+
+    @require(session=True)
+    def load_text(self):
+        if self.sent_edit is not None:
+            raise NotImplementedError
+
+        text_filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open text (txt)", filter="*.txt")[0]
+        if text_filename:
+            try:
+                with open(text_filename, "r") as f:
+                    data = f.read()
+                    self.init_for_text(data)
+            except OSError:
+                logging.error("Failed to open file")
+
+    @require(text=True)
+    def choose_sent(self):
+        qt_cursor = self.text_field.textCursor()
+        cursor_position = qt_cursor.position()
+        sent_idx = self.text_edit.get_sentence_idx_for_cursor(cursor_position)
+        if sent_idx != -1:
+            sent_text = self.text_edit.sentences[sent_idx]
+            self.init_for_sent(sent_text)
+        else:
+            logging.info("Selected sentence index is not found")
+
+    @require(sent=True)
+    def make_col(self):
+        qt_cursor = self.sent_field.textCursor()
+        if qt_cursor.hasSelection():
+            selection_start = qt_cursor.selectionStart()
+            selection_end = qt_cursor.selectionEnd()
+            kind = self.sgs[self.sg_cb.currentIndex()][1]
+            self.sent_edit.make_col_text_part(selection_start, selection_end, ling.sentence.SemanticGroup(kind))
+            self.generate_sent_view()
+
+    @require(sent=True)
+    def make_con(self):
+        if not self.session.connected:
+            return
+        raise NotImplementedError
+
+    @require(sent=True)
+    def add_new_sg(self):
+        if not self.session.connected:
+            return
+        raise NotImplementedError
+
+    @require(sent=True)
+    def automake_con(self):
+        if not self.session.connected:
+            return
+        raise NotImplementedError
+
+    @require(sent=True)
+    def change_sg_col(self):
+        if not self.session.connected:
+            return
+        raise NotImplementedError
+
+    @require(sent=True)
+    def change_words_col(self):
+        if not self.session.connected:
+            return
+        raise NotImplementedError
+
+    @require(sent=True)
+    def delete_col(self):
+        if not self.session.connected:
+            return
+        raise NotImplementedError
+
+    @require(sent=True)
+    def delete_con(self):
+        if not self.session.connected:
+            return
+        raise NotImplementedError
+
+    @require(sent=True)
+    def union_col(self):
+        if not self.session.connected:
+            return
+        raise NotImplementedError
+

@@ -11,7 +11,6 @@ def excepthook_override(cls, exception, traceback):
     tb.print_exception(cls, exception, traceback, file=f)
     f.seek(os.SEEK_SET)
     logging.error("Python exception: %s", f.read())
-    # sys.__excepthook__(cls, exception, traceback)
 
 
 def init_logger():

@@ -2,13 +2,10 @@
 File containing functions forming an API for interacting with SQL database
 """
 import sqlite3
-import traceback
 import typing
 from typing import Union, List
 import logging
 import functools
-
-import ling.ling as ling
 import dataclasses
 
 
@@ -39,7 +36,6 @@ def db_api(func):
             result = func(*args, **kwargs)
             return result
         logging.error("Tried to call func %s with no database open" % func.__name__)
-        raise RuntimeError
         return None
 
     return wrapper
@@ -61,7 +57,7 @@ SentenceID = typing.NewType("SentenceID", int)
 @dataclasses.dataclass(frozen=True)
 class SemanticGroup:
     """Semantic group is an object that simulates an expandable enumeration of linguistic semantic groups
-       Semantic groups are linked with collocations and are used in connections"""
+       Semantic groups are linked with cols and are used in cons"""
     id: SemanticGroupID
     # Name in russian, case is undefined
     name: str
@@ -74,8 +70,6 @@ class Word:
     id: WordID
     # ID of initial form if word has some, otherwise None
     initial_form_id: Union[WordID, None]
-    # Some additional info, this may to be actually useful
-    part_of_speech: ling.PartOfSpeech
     # Word for in russian, lowercase
     word: str
 
@@ -84,11 +78,11 @@ class Word:
 class Collocation:
     """Collocation - combination of words with a semantic group attached to it"""
     id: CollocationID
-    # What semantic group does this collocation has
-    semantic_group_id: SemanticGroupID
-    # All words in collocation in correct order
+    # What semantic group does this col has
+    sg_id: SemanticGroupID
+    # All words in col in correct order
     words: List[WordID]
-    # String used to ensure uniqueness of collocation in DB - this can be replaced with a proper hash functions
+    # String used to ensure uniqueness of col in DB - this can be replaced with a proper hash functions
     words_hash: int
     # Words like they are met in sentence
     text: str
@@ -96,7 +90,7 @@ class Collocation:
 
 @dataclasses.dataclass(frozen=True)
 class Connection:
-    """Connection is a combination of predicate collocation and collocation of some other kind"""
+    """Connection is a combination of predicate col and col of some other kind"""
     id: ConnID
     predicate: CollocationID
     object_: CollocationID
@@ -104,21 +98,21 @@ class Connection:
 
 @dataclasses.dataclass(frozen=True)
 class Sentence:
-    """Sentence record like it is edited by user. Sentence is a connection of collocations, connections and words
+    """Sentence record like it is edited by user. Sentence is a con of cols, cons and words
        with same word set (or text)"""
     id: SentenceID
     # Text of sentence
     contents: str
-    # Set of collocations
-    collocations: List[CollocationID]
-    # Set of connections
-    connections: List[ConnID]
+    # Set of cols
+    cols: List[CollocationID]
+    # Set of cons
+    cons: List[ConnID]
     # Set of words
     words: List[WordID]
 
 
 @dataclasses.dataclass
-class DBCtx:
+class DB:
     """
     Class encapsulating all methods of directly interacting with DB.
     It is made a dataclass to make interface function calls always work,
@@ -130,6 +124,10 @@ class DBCtx:
     database: sqlite3.Connection = None
     cursor: sqlite3.Cursor = None
     # @TODO(hl): Backups
+
+    @property
+    def connected(self):
+        return self.database is not None
 
     def create_or_open(self, filename):
         self.filename = filename
@@ -183,7 +181,7 @@ class DBCtx:
         self.cursor.executescript(tables_create_query)
         self.database.commit()
 
-    def get_semantic_group_internal(self, id_: Union[SemanticGroupID, None] = None) \
+    def get_sg_internal(self, id_: Union[SemanticGroupID, None] = None) \
             -> List[SemanticGroup]:
         """Helper function for getting semantic groups"""
         sql = """select id, name from semantic_group"""
@@ -205,21 +203,20 @@ class DBCtx:
         for id_, init_id, form, pos, has_init in values:
             deriv = Word(WordID(id_),
                          WordID(init_id),
-                         ling.PartOfSpeech(pos),
                          form)
             result.append(deriv)
         return result
 
-    def get_collocations_internal(self, id_: Union[CollocationID, None] = None) \
+    def get_cols_internal(self, id_: Union[CollocationID, None] = None) \
             -> List[Collocation]:
-        """Helper function for getting collocations"""
-        sql = "select id, semantic_group_id, word_hash, words_text from Collocation"
+        """Helper function for getting cols"""
+        sql = "select id, sg_id, word_hash, words_text from Collocation"
         values = self.abstract_sql_resource_get(sql, id_)
-        logging.info("Queried %d collocations", len(values))
+        logging.info("Queried %d cols", len(values))
         result = []
         for id_, kind, word_hash, text in values:
-            sql = """select word_id, idx from collocation_junction
-                     where collocation_id = (?)"""
+            sql = """select word_id, idx from col_junction
+                     where col_id = (?)"""
             word_ids = self.execute(sql, id_)
             word_ids.sort(key=lambda it: it[1])
             word_ids = [it[0] for it in word_ids]
@@ -231,12 +228,12 @@ class DBCtx:
             result.append(coll)
         return result
 
-    def get_connections_internal(self, id_: Union[ConnID, None] = None) \
+    def get_cons_internal(self, id_: Union[ConnID, None] = None) \
             -> List[Connection]:
-        """Helper function for getting connections"""
+        """Helper function for getting cons"""
         sql = "select id, predicate, object from Conn"
         values = self.abstract_sql_resource_get(sql, id_)
-        logging.info("Queried %d connections", len(values))
+        logging.info("Queried %d cons", len(values))
         result = []
         for id_, pred_id, obj_id in values:
             coll = Connection(ConnID(id_),
@@ -257,7 +254,7 @@ class DBCtx:
             sql = """select conn_id from Sentence_Connection_Junction
                      where sentence_id = (?)"""
             conn_ids = self.execute(sql, id_)
-            sql = """select collocation_id from Sentence_Collocation_Junction
+            sql = """select col_id from Sentence_Collocation_Junction
                      where sentence_id = (?)"""
             coll_ids = self.execute(sql, id_)
             sql = """select idx, word_id from sentence_word_junction
@@ -273,9 +270,9 @@ class DBCtx:
         return result
 
     @db_api
-    def get_all_semantic_groups(self) -> List[SemanticGroup]:
+    def get_all_sgs(self) -> List[SemanticGroup]:
         logging.info("Querying all semantic groups")
-        return self.get_semantic_group_internal()
+        return self.get_sg_internal()
 
     @db_api
     def get_all_words(self) -> List[Word]:
@@ -283,14 +280,14 @@ class DBCtx:
         return self.get_word_internal()
 
     @db_api
-    def get_all_collocations(self) -> List[Collocation]:
-        logging.info("Querying all collocations")
-        return self.get_collocations_internal()
+    def get_all_cols(self) -> List[Collocation]:
+        logging.info("Querying all cols")
+        return self.get_cols_internal()
 
     @db_api
-    def get_all_connections(self) -> List[Connection]:
-        logging.info("Querying all connections")
-        return self.get_connections_internal()
+    def get_all_cons(self) -> List[Connection]:
+        logging.info("Querying all cons")
+        return self.get_cons_internal()
 
     @db_api
     def get_all_sentences(self) -> List[Sentence]:
@@ -298,9 +295,9 @@ class DBCtx:
         return self.get_sentences_internal()
 
     @db_api
-    def get_semantic_group(self, id_: SemanticGroupID) -> SemanticGroup:
+    def get_sg(self, id_: SemanticGroupID) -> SemanticGroup:
         logging.info("Querying semantic group %d " % id_)
-        result = self.get_semantic_group_internal(id_)
+        result = self.get_sg_internal(id_)
         if not result:
             logging.error("Failed to query semantic group %d" % id_)
         else:
@@ -318,21 +315,21 @@ class DBCtx:
         return result[0] if result else None
 
     @db_api
-    def get_collocation(self, id_: CollocationID) -> Collocation:
-        logging.info("Querying collocation %d" % id_)
-        result = self.get_collocations_internal(id_)
+    def get_col(self, id_: CollocationID) -> Collocation:
+        logging.info("Querying col %d" % id_)
+        result = self.get_cols_internal(id_)
         if not result:
-            logging.error("Failed to query collocation %d" % id_)
+            logging.error("Failed to query col %d" % id_)
         else:
             logging.debug(result)
         return result[0] if result else None
 
     @db_api
-    def get_connection(self, id_: ConnID) -> Connection:
-        logging.info("Querying connection %d" % id_)
-        result = self.get_connections_internal(id_)
+    def get_con(self, id_: ConnID) -> Connection:
+        logging.info("Querying con %d" % id_)
+        result = self.get_cons_internal(id_)
         if not result:
-            logging.error("Failed to query connection %d" % id_)
+            logging.error("Failed to query con %d" % id_)
         else:
             logging.debug(result)
         return result[0] if result else None
@@ -365,33 +362,33 @@ class DBCtx:
         return deriv
 
     @db_api
-    def get_collocation_ids_with_word_id(self, id_: WordID) -> List[CollocationID]:
-        """Returns all collocations containing word"""
-        sql = """select distinct collocation_id from Collocation_Junction
+    def get_col_ids_with_word_id(self, id_: WordID) -> List[CollocationID]:
+        """Returns all cols containing word"""
+        sql = """select distinct col_id from Collocation_Junction
                  where word_id = (?)"""
         col_ids = self.execute(sql, id_)
         col_ids = list(map(CollocationID, col_ids))
         return col_ids
 
     @db_api
-    def get_connection_ids_with_coll_id_object(self, id_: CollocationID) -> List[ConnID]:
-        """Return all connections where object is given collocation"""
+    def get_con_ids_with_coll_id_object(self, id_: CollocationID) -> List[ConnID]:
+        """Return all cons where object is given col"""
         sql = """select id from conn where object = (?)"""
         ids0 = self.execute(sql, id_)
         return ids0
 
     @db_api
-    def get_connection_ids_with_coll_id_predicate(self, id_: CollocationID) -> List[ConnID]:
-        """Return all connections where predicate is given collocation"""
+    def get_con_ids_with_coll_id_predicate(self, id_: CollocationID) -> List[ConnID]:
+        """Return all cons where predicate is given col"""
         sql = """select id from conn where predicate = (?)"""
         ids1 = self.execute(sql, id_)
         return ids1
 
     @db_api
-    def get_connection_ids_with_coll_id(self, id_: CollocationID) -> List[ConnID]:
-        """Return all connections with given collocation"""
-        return list(set(self.get_connection_ids_with_coll_id_object(id_) +
-                        self.get_connection_ids_with_coll_id_predicate(id_)))
+    def get_con_ids_with_coll_id(self, id_: CollocationID) -> List[ConnID]:
+        """Return all cons with given col"""
+        return list(set(self.get_con_ids_with_coll_id_object(id_) +
+                        self.get_con_ids_with_coll_id_predicate(id_)))
 
     @db_api
     def get_sentences_id_by_word_id(self, id_: WordID) -> List[SentenceID]:
@@ -401,9 +398,9 @@ class DBCtx:
         return result
 
     @db_api
-    def get_semantic_group_id_by_name(self, name: str) -> SemanticGroupID:
+    def get_sg_id_by_name(self, name: str) -> SemanticGroupID:
         """Returns semantic group id by name"""
-        sql = """select id from semantic_group where name = (?)"""
+        sql = """select id from sg where name = (?)"""
         groups = self.execute(sql, name)
         result = 0
         if groups:
@@ -418,15 +415,15 @@ class DBCtx:
         return sentences
 
     @db_api
-    def get_collocations_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
-        """Returns all collocation that have given semantic group"""
-        logging.info("get_collocations_of_sem_group %d" % sg)
-        sql = """select id from collocation where semantic_group_id = (?)"""
+    def get_cols_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
+        """Returns all col that have given semantic group"""
+        logging.info("get_cols_of_sem_group %d" % sg)
+        sql = """select id from col where sg_id = (?)"""
         result = self.execute(sql, sg)
         return result
 
     @db_api
-    def add_or_update_sentence_record(self, sent: ling.SentenceCtx):
+    def add_or_update_sentence_record(self, sent: "ling.Sentence"):
         """Inserts sentence into database"""
         logging.info("Updating sentence %s (wc %d)", sent.text, len(sent.words))
         #
@@ -461,52 +458,52 @@ class DBCtx:
             self.execute(sql, *junction_data)
             word_ids.append(word_id)
 
-        logging.info("Inserting %d collocations" % len(sent.collocations))
+        logging.info("Inserting %d cols" % len(sent.cols))
 
-        collocation_ids = []
-        for idx, collocation in enumerate(sent.collocations):
-            collocation_words = list(map(lambda it: sent.words[it], collocation.word_idxs))
-            word_hash = " ".join(collocation_words)
+        col_ids = []
+        for idx, col in enumerate(sent.cols):
+            col_words = list(map(lambda it: sent.words[it], col.word_idxs))
+            word_hash = " ".join(col_words)
             word_hash = word_hash.lower()
-            # First of all, try to find collocation with same words
+            # First of all, try to find col with same words
             # @HACK(hl): Because it is complicated and slow to do checks for all junctions, we use word hash here
             #  This way we can directly compare it
-            sql = """select id from collocation where word_hash = (?)"""
-            collocation_id = self.execute(sql, word_hash)
-            if not collocation_id:
-                logging.info("Inserting collocation %d %s" % (collocation.semantic_group, str(collocation_words)))
-                sql = """insert into collocation (semantic_group_id, word_hash, words_text) values (?, ?, ?)"""
+            sql = """select id from col where word_hash = (?)"""
+            col_id = self.execute(sql, word_hash)
+            if not col_id:
+                logging.info("Inserting col %d %s" % (col.sg, str(col_words)))
+                sql = """insert into col (sg_id, word_hash, words_text) values (?, ?, ?)"""
                 # @TODO(hl): Proper words_text
-                self.execute(sql, collocation.semantic_group, word_hash, word_hash)
-                sql = """select id from collocation
+                self.execute(sql, col.sg, word_hash, word_hash)
+                sql = """select id from col
                          where rowid = ( select last_insert_rowid() )"""
-                collocation_id = safe_unpack(self.execute(sql))
+                col_id = safe_unpack(self.execute(sql))
 
-                sql = """insert into collocation_junction (word_id, collocation_id, idx)
+                sql = """insert into col_junction (word_id, col_id, idx)
                          values (?, ?, ?)
                          """
-                words = list(map(lambda it: (word_ids[it[1]], collocation_id, it[0]), enumerate(collocation.word_idxs)))
+                words = list(map(lambda it: (word_ids[it[1]], col_id, it[0]), enumerate(col.word_idxs)))
                 self.cursor.executemany(sql, words)
             else:
-                logging.info("Collocation %d %s is already present " % (collocation.semantic_group, str(collocation_words)))
-                collocation_id = collocation_id[0]
+                logging.info("Collocation %d %s is already present " % (col.sg, str(col_words)))
+                col_id = col_id[0]
 
-            sql = """insert into Sentence_Collocation_Junction (sentence_id, collocation_id)
+            sql = """insert into Sentence_Collocation_Junction (sentence_id, col_id)
                      values (?, ?)"""
-            self.execute(sql, sentence_id, collocation_id)
-            collocation_ids.append(collocation_id)
+            self.execute(sql, sentence_id, col_id)
+            col_ids.append(col_id)
 
-        logging.info("Inserting %d connections" % len(sent.connections))
-        for connection in sent.connections:
+        logging.info("Inserting %d cons" % len(sent.cons))
+        for con in sent.cons:
             sql = """insert or ignore into Conn (predicate, object) 
                      values(?, ?)
                      """
-            conn_collocation_ids = (collocation_ids[connection[0]], collocation_ids[connection[1]])
-            self.execute(sql, *conn_collocation_ids)
+            conn_col_ids = (col_ids[con[0]], col_ids[con[1]])
+            self.execute(sql, *conn_col_ids)
 
             sql = """select id from Conn
                      where predicate = (?) and object = (?)"""
-            conn_id = safe_unpack(self.execute(sql, *conn_collocation_ids))
+            conn_id = safe_unpack(self.execute(sql, *conn_col_ids))
             sql = """insert into Sentence_Connection_Junction (sentence_id, conn_id)
                      values(?, ?)"""
             self.execute(sql, sentence_id, conn_id)
@@ -536,26 +533,26 @@ class DBCtx:
         return word_id
 
     @db_api
-    def add_semantic_group(self, name: str) -> SemanticGroupID:
-        sg = self.get_semantic_group_id_by_name(name)
+    def add_sg(self, name: str) -> SemanticGroupID:
+        sg = self.get_sg_id_by_name(name)
         if sg:
             logging.warning("Semantic group %s is already defined (id %d)", name, sg)
         else:
-            sql = """insert into semantic_group (name) values (?)"""
+            sql = """insert into sg (name) values (?)"""
             self.execute(sql, name)
-            sg = self.get_semantic_group_id_by_name(name)
+            sg = self.get_sg_id_by_name(name)
             assert sg is not None and sg
             logging.info("Inserted semantic group %s" % name)
         return sg
         
     @db_api 
-    def remove_semantic_group(self, id_: SemanticGroupID):
+    def remove_sg(self, id_: SemanticGroupID):
         # @TODO(hl): MAKE SURE NO LINKS TO DELETED SEMANTIC GROUP ARE STILL IN DB
-        sg = self.get_semantic_group(id_)
+        sg = self.get_sg(id_)
         if sg is None:
             logging.error("Semantic group %d does nto exist" % id_)
         else:
-            sql = """delete from semantic_group where id = (?)"""
+            sql = """delete from sg where id = (?)"""
             self.execute(sql, id_)
 
     @db_api
