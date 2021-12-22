@@ -100,12 +100,10 @@ class Sentence:
                 break
         return result
 
-    def get_pretty_string_with_words_for_col(self, col_idx: int) -> str:
+    def get_pretty_string_with_words(self, word_idxs: list[int]) -> str:
         result = ""
-        col = self.cols[col_idx]
         last_word_idx = -1
-        print(col)
-        for word_idx in col.word_idxs:
+        for word_idx in word_idxs:
             word, word_start = self.words[word_idx], self.word_starts[word_idx]
             if last_word_idx != -1 and word_idx - last_word_idx != 1:
                 # If words are not adjacent insert ellipsis
@@ -114,7 +112,6 @@ class Sentence:
                 non_word_part = ""
                 # Find the non word part connecting two adjacent words
                 cur = self.word_starts[last_word_idx] + len(self.words[last_word_idx])
-                print(cur, self.non_word_starts)
                 for start, part in zip(self.non_word_starts, self.non_word_parts):
                     if start == cur:
                         non_word_part = part
@@ -123,6 +120,15 @@ class Sentence:
             result += word
             last_word_idx = word_idx
         return result
+
+    def get_pretty_string_with_words_for_col(self, col_idx: int) -> str:
+        return self.get_pretty_string_with_words(self.cols[col_idx].word_idxs)
+
+    def get_pretty_string_with_words_for_cols(self, col_idxs: list[int]) -> str:
+        word_idxs = []
+        for col_idx in col_idxs:
+            word_idxs.extend(self.cols[col_idx].word_idxs)
+        return self.get_pretty_string_with_words(word_idxs)
 
     def add_col_internal(self, col) -> int:
         """Adds collocation and returns its index"""
@@ -175,6 +181,7 @@ class Sentence:
                 new_idx = len(new_cols)
                 new_cols.append(col)
                 mapped_indices[idx] = new_idx
+        self.cols = new_cols
 
         new_cons = []
         for con in self.cons:
@@ -218,6 +225,8 @@ class Sentence:
 
             new_cons.append(new_con)
         self.cons = new_cons
+
+        self.remove_cols(col_ids)
 
     def make_con(self, pred_idx: int, actant_idx: int):
         """Makes con with collocations which indices given in list
@@ -303,11 +312,26 @@ class Sentence:
 
     def remove_cons(self, idxs: list[int]):
         """Deletes connections of given indices"""
-        raise NotImplementedError
+        new_cons = []
+        for idx, con in enumerate(self.cons):
+            if idx not in idxs:
+                new_cons.append(con)
+        self.cons = new_cons
 
     def remove_words_from_col(self, col_idx: int, word_idxs: list[int]):
         """Removes given word indexes from collocation.
            Indices are for collocation word list, not for the sentence words
            If number of words deleted equals total number of words in collocation,
            delete collocation instead"""
-        raise NotImplementedError
+        col = self.cols[col_idx]
+
+        if len(col.word_idxs) == len(word_idxs):
+            self.remove_cols([col_idx])
+            return
+
+        new_word_idxs = []
+        for idx, word_idx in enumerate(col.word_idxs):
+            if idx not in word_idxs:
+                new_word_idxs.append(word_idx)
+        new_col = Collocation(tuple(new_word_idxs), col.sg)
+        self.cols[col_idx] = new_col

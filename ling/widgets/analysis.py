@@ -11,9 +11,6 @@ from ling.session import Session
 from ling.widgets.change_sg_col import ChangeSGColDialog
 from ling.widgets.delete_words_col import DeleteWordsColDialog
 
-COL_TABLE_HEADERS = ["Сочетание", "Семантическая группа"]
-CON_TABLE_HEADERS = ["Предикат", "Актант"]
-
 
 def require(*, session: bool = False, text: bool = False, sent: bool = False):
     if sent:
@@ -100,7 +97,7 @@ class AnalysisWidget(QtWidgets.QMainWindow):
         for idx, col in enumerate(self.sent_edit.cols):
             pretty = self.sent_edit.get_pretty_string_with_words_for_col(idx)
             sg_name = self.sgs[col.sg][0]
-            print(pretty, sg_name, idx, col)
+            print(pretty, sg_name)
             col_it = QtWidgets.QTableWidgetItem(pretty)
             sg_it = QtWidgets.QTableWidgetItem(sg_name)
             self.col_table.setItem(idx, 0, col_it)
@@ -197,6 +194,28 @@ class AnalysisWidget(QtWidgets.QMainWindow):
             if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
                 dialog_selected = [it.row() for it in dialog.word_list.selectionModel().selectedIndexes()]
                 self.sent_edit.remove_words_from_col(selected, dialog_selected)
+                self.generate_sent_view()
+
+    @require(sent=True)
+    def delete_col(self):
+        selected = ling.qt_helper.table_get_selected_rows(self.col_table)
+        if selected:
+            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Question, "Удаление", "Удалить?",
+                                           QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+            if dialog.exec_() == QtWidgets.QMessageBox.Yes:
+                self.sent_edit.remove_cols(selected)
+                self.generate_sent_view()
+
+    @require(sent=True)
+    def union_col(self):
+        selected = ling.qt_helper.table_get_selected_rows(self.col_table)
+        if len(selected) >= 2:
+            dialog = ChangeSGColDialog(self.session, self.sent_edit.get_pretty_string_with_words_for_cols(selected),
+                                       self.sent_edit.cols[selected[0]].sg, self)
+            if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
+                dialog_selected_sg = dialog.sg_cb.currentIndex()
+                self.sent_edit.join_cols(selected, dialog_selected_sg)
+                self.generate_sent_view()
 
     @require(sent=True)
     def add_new_sg(self):
@@ -207,14 +226,6 @@ class AnalysisWidget(QtWidgets.QMainWindow):
         raise NotImplementedError
 
     @require(sent=True)
-    def delete_col(self):
-        raise NotImplementedError
-
-    @require(sent=True)
     def delete_con(self):
-        raise NotImplementedError
-
-    @require(sent=True)
-    def union_col(self):
         raise NotImplementedError
 

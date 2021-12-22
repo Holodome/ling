@@ -88,7 +88,8 @@ class Session:
         return result
 
     def get_pred_sg(self) -> db.SemanticGroupID:
-        raise NotImplementedError
+        result_id = self.db.get_sg_id_by_name("Предикат")
+        return result_id
 
     def get_sg_list(self) -> list[tuple[str, int]]:
         db_sgs = self.db.get_all_sgs()

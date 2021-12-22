@@ -400,7 +400,7 @@ class DB:
     @db_api
     def get_sg_id_by_name(self, name: str) -> SemanticGroupID:
         """Returns semantic group id by name"""
-        sql = """select id from sg where name = (?)"""
+        sql = """select id from semantic_group where name = (?)"""
         groups = self.execute(sql, name)
         result = 0
         if groups:
@@ -552,7 +552,7 @@ class DB:
         if sg is None:
             logging.error("Semantic group %d does nto exist" % id_)
         else:
-            sql = """delete from sg where id = (?)"""
+            sql = """delete from semantic_group where id = (?)"""
             self.execute(sql, id_)
 
     @db_api

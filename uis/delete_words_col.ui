@@ -65,7 +65,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Предпросмотр сочетания:</string>
+    <string>Просмотр сочетания:</string>
    </property>
   </widget>
   <widget class="QListWidget" name="word_list">
