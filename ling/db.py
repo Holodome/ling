@@ -253,7 +253,7 @@ class DB:
 
         result = []
         for id_, contents in values:
-            sql = """select conn_id from Sentence_Connection_Junction
+            sql = """select con_id from Sentence_Connection_Junction
                      where sentence_id = (?)"""
             conn_ids = self.execute(sql, id_)
             sql = """select col_id from Sentence_Collocation_Junction
@@ -420,7 +420,7 @@ class DB:
     def get_cols_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
         """Returns all col that have given semantic group"""
         logging.info("get_cols_of_sem_group %d" % sg)
-        sql = """select id from col where sg_id = (?)"""
+        sql = """select id from collocation where sg_id = (?)"""
         result = self.execute(sql, sg)
         return result
 
@@ -440,12 +440,12 @@ class DB:
         #
         # first of all, delete all previous entries about sentence
         #
-        sql = """delete from Sentence_Collocation_Junction where sentence_id = (?)"""
+        sql = """delete from Sentence_Collocation_Junction where sent_id = (?)"""
         self.execute(sql, sentence_id)
 
-        sql = """delete from Sentence_Connection_Junction where sentence_id = (?)"""
+        sql = """delete from Sentence_Connection_Junction where sent_id = (?)"""
         self.execute(sql, sentence_id)
-        sql = """delete from sentence_word_junction where sentence_id = (?)"""
+        sql = """delete from sentence_word_junction where sent_id = (?)"""
         self.execute(sql, sentence_id)
         #
         # now start populating database again
@@ -455,7 +455,7 @@ class DB:
         for idx, (word, start_idx) in enumerate(zip(sent.words, sent.word_starts)):
             word_id = self.get_or_insert_word(word)
             junction_data = (sentence_id, word_id, idx, start_idx)
-            sql = """insert into sentence_word_junction (sentence_id, word_id, idx, text_idx)
+            sql = """insert into sentence_word_junction (sent_id, word_id, idx, text_idx)
                      values (?, ?, ?, ?)"""
             self.execute(sql, *junction_data)
             word_ids.append(word_id)
@@ -470,18 +470,18 @@ class DB:
             # First of all, try to find col with same words
             # @HACK(hl): Because it is complicated and slow to do checks for all junctions, we use word hash here
             #  This way we can directly compare it
-            sql = """select id from col where word_hash = (?)"""
+            sql = """select id from collocation where word_hash = (?)"""
             col_id = self.execute(sql, word_hash)
             if not col_id:
                 logging.info("Inserting col %d %s" % (col.sg, str(col_words)))
-                sql = """insert into col (sg_id, word_hash, words_text) values (?, ?, ?)"""
+                sql = """insert into collocation (sg_id, word_hash, words_text) values (?, ?, ?)"""
                 # @TODO(hl): Proper words_text
                 self.execute(sql, col.sg, word_hash, word_hash)
-                sql = """select id from col
+                sql = """select id from collocation
                          where rowid = ( select last_insert_rowid() )"""
                 col_id = safe_unpack(self.execute(sql))
 
-                sql = """insert into col_junction (word_id, col_id, idx)
+                sql = """insert into collocation_junction (word_id, col_id, idx)
                          values (?, ?, ?)
                          """
                 words = list(map(lambda it: (word_ids[it[1]], col_id, it[0]), enumerate(col.word_idxs)))
@@ -490,7 +490,7 @@ class DB:
                 logging.info("Collocation %d %s is already present " % (col.sg, str(col_words)))
                 col_id = col_id[0]
 
-            sql = """insert into Sentence_Collocation_Junction (sentence_id, col_id)
+            sql = """insert into Sentence_Collocation_Junction (sent_id, col_id)
                      values (?, ?)"""
             self.execute(sql, sentence_id, col_id)
             col_ids.append(col_id)
@@ -500,13 +500,13 @@ class DB:
             sql = """insert or ignore into Conn (predicate, object) 
                      values(?, ?)
                      """
-            conn_col_ids = (col_ids[con[0]], col_ids[con[1]])
+            conn_col_ids = (col_ids[con.predicate_idx], col_ids[con.actant_idx])
             self.execute(sql, *conn_col_ids)
 
             sql = """select id from Conn
                      where predicate = (?) and object = (?)"""
             conn_id = safe_unpack(self.execute(sql, *conn_col_ids))
-            sql = """insert into Sentence_Connection_Junction (sentence_id, conn_id)
+            sql = """insert into Sentence_Connection_Junction (sent_id, con_id)
                      values(?, ?)"""
             self.execute(sql, sentence_id, conn_id)
 
@@ -540,7 +540,7 @@ class DB:
         if sg:
             logging.warning("Semantic group %s is already defined (id %d)", name, sg)
         else:
-            sql = """insert into sg (name) values (?)"""
+            sql = """insert into semantic_group(name) values (?)"""
             self.execute(sql, name)
             sg = self.get_sg_id_by_name(name)
             assert sg is not None and sg

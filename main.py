@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import QApplication
 
 from ling.session import Session
-from ling.widgets import analysis
+import ling.widgets.window
 from ling import logger
 
 
@@ -11,7 +11,7 @@ def main():
 
     app = QApplication(sys.argv)
     session = Session()
-    widget = analysis.AnalysisWidget(session)
+    widget = ling.widgets.window.Window(session)
     widget.show()
     sys.exit(app.exec_())
 

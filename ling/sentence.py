@@ -238,11 +238,11 @@ class Sentence:
 
         new_cons = []
         for con in self.cons:
-            if con.predicate_idx in col_idxs or \
-                    con.actant_idx in col_idxs:
+            if con.actant_idx == actant_idx:
                 pass
             else:
                 new_cons.append(con)
+        self.cons = new_cons
 
         con = Connection(pred_idx, actant_idx)
         new_cons.append(con)
@@ -273,9 +273,8 @@ class Sentence:
 
         # We can safely clear the connection list because all semantic groups would be used and nothing should remain
         for idx, col in enumerate(self.cols):
-            if idx != pred_idx:
+            if idx != pred_idx and col.sg != pred_sg:
                 self.make_con(pred_idx, idx)
-        assert len(self.cons) == len(self.cols) - 1
 
     def get_colored_html(self) -> str:
         """Returns html version of the sentence with collocations colored"""

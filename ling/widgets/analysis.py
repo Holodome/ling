@@ -9,6 +9,7 @@ import ling.text
 import ling.qt_helper
 from ling.session import Session
 from ling.widgets.change_sg_col import ChangeSGColDialog
+from ling.widgets.db_connection_interface import DbConnectionInterface
 from ling.widgets.delete_words_col import DeleteWordsColDialog
 
 
@@ -40,9 +41,9 @@ def require(*, session: bool = False, text: bool = False, sent: bool = False):
     return decorator
 
 
-class AnalysisWidget(QtWidgets.QMainWindow):
+class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
     def __init__(self, session: Session, parent=None):
-        super().__init__(parent)
+        QtWidgets.QWidget.__init__(self, parent)
         self.session = session
         self.sent_edit: ling.sentence.Sentence = None
         self.text_edit: ling.text.Text = None
@@ -51,20 +52,14 @@ class AnalysisWidget(QtWidgets.QMainWindow):
         uic.loadUi("uis/analysis.ui", self)
         self.init_ui()
 
-        self.init_for_text(open("examples/block.txt").read())
+    def on_db_connection(self):
+        self.init_for_db()
 
     def init_ui(self):
         if self.session.connected:
-            self.init_for_db(self.session.db.filename)
-
-        header = self.col_table.horizontalHeader()
-        # header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
-
-        header = self.con_table.horizontalHeader()
-        # header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+            self.init_for_db()
 
         self.choose_sent_btn.clicked.connect(lambda: self.choose_sent())
-        self.load_db_btn.clicked.connect(lambda: self.load_db())
         self.load_text_btn.clicked.connect(lambda: self.load_text())
         self.make_col_btn.clicked.connect(lambda: self.make_col())
         self.make_con_btn.clicked.connect(lambda: self.make_con())
@@ -80,8 +75,7 @@ class AnalysisWidget(QtWidgets.QMainWindow):
         self.session.db.add_or_update_sentence_record(self.sent_edit)
         logging.info("Saved sentence changes to db")
 
-    def init_for_db(self, filename: str):
-        self.db_filename_le.setText(filename)
+    def init_for_db(self):
         cb = self.sg_cb
         sgs = self.session.get_sg_list()
         self.sgs = sgs
@@ -126,15 +120,6 @@ class AnalysisWidget(QtWidgets.QMainWindow):
         self.generate_con_table()
         html = self.sent_edit.get_colored_html()
         self.sent_field.setHtml(html)
-
-    def load_db(self):
-        if self.session.connected:
-            raise NotImplementedError
-
-        filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open db", filter="*.sqlite")[0]
-        if filename:
-            self.session.init_for_db(filename)
-            self.init_for_db(filename)
 
     @require(session=True)
     def load_text(self):
