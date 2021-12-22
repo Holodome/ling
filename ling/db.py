@@ -8,6 +8,8 @@ import logging
 import functools
 import dataclasses
 
+import ling.word 
+
 
 def flatten_by_idx(arr, idx):
     return list(map(lambda it: it[idx], arr))
@@ -22,7 +24,7 @@ def safe_unpack(_list: list):
     return _list[0]
 
 
-def db_api(func):
+def require_db(func):
     """
     Декоратор для методов API работы с базой данных - мы хотим получить корректную обработку ошибок
     в случае отсутствия инициализации (когда бд не открыта) без исключений и их обработки
@@ -52,7 +54,7 @@ SentenceID = typing.NewType("SentenceID", int)
 
 
 #
-# ORM
+# orM
 #
 @dataclasses.dataclass(frozen=True)
 class SemanticGroup:
@@ -172,7 +174,7 @@ class DB:
             values = self.execute(query)
         return values
 
-    @db_api
+    @require_db
     def create_tables(self):
         """
         Executes table creating script
@@ -269,32 +271,32 @@ class DB:
             result.append(sent)
         return result
 
-    @db_api
+    @require_db
     def get_all_sgs(self) -> List[SemanticGroup]:
         logging.info("Querying all semantic groups")
         return self.get_sg_internal()
 
-    @db_api
+    @require_db
     def get_all_words(self) -> List[Word]:
         logging.info("Querying all words")
         return self.get_word_internal()
 
-    @db_api
+    @require_db
     def get_all_cols(self) -> List[Collocation]:
         logging.info("Querying all cols")
         return self.get_cols_internal()
 
-    @db_api
+    @require_db
     def get_all_cons(self) -> List[Connection]:
         logging.info("Querying all cons")
         return self.get_cons_internal()
 
-    @db_api
+    @require_db
     def get_all_sentences(self) -> List[Sentence]:
         logging.info("Querying all sentences")
         return self.get_sentences_internal()
 
-    @db_api
+    @require_db
     def get_sg(self, id_: SemanticGroupID) -> SemanticGroup:
         logging.info("Querying semantic group %d " % id_)
         result = self.get_sg_internal(id_)
@@ -304,7 +306,7 @@ class DB:
             logging.debug(result)
         return result[0] if result else None
 
-    @db_api
+    @require_db
     def get_word(self, id_: WordID) -> Word:
         logging.info("Querying word %d" % id_)
         result = self.get_word_internal(id_)
@@ -314,7 +316,7 @@ class DB:
             logging.debug(result)
         return result[0] if result else None
 
-    @db_api
+    @require_db
     def get_col(self, id_: CollocationID) -> Collocation:
         logging.info("Querying col %d" % id_)
         result = self.get_cols_internal(id_)
@@ -324,7 +326,7 @@ class DB:
             logging.debug(result)
         return result[0] if result else None
 
-    @db_api
+    @require_db
     def get_con(self, id_: ConnID) -> Connection:
         logging.info("Querying con %d" % id_)
         result = self.get_cons_internal(id_)
@@ -334,7 +336,7 @@ class DB:
             logging.debug(result)
         return result[0] if result else None
 
-    @db_api
+    @require_db
     def get_sentence(self, id_: SentenceID) -> Sentence:
         logging.info("Querying sentence %d" % id_)
         result = self.get_sentences_internal(id_)
@@ -344,7 +346,7 @@ class DB:
             logging.debug(result)
         return result[0] if result else None
 
-    @db_api
+    @require_db
     def get_word_id_by_word(self, word: str) -> WordID:
         """Returns word id by its string"""
         sql = """select id from word where word = (?)"""
@@ -353,7 +355,7 @@ class DB:
         assert len(deriv) <= 1
         return deriv[0]
 
-    @db_api
+    @require_db
     def get_word_ids_by_word_part(self, word_part: str) -> List[WordID]:
         """Returns word ids where word_part is met"""
         sql = "select id from word where form LIKE (?)"
@@ -361,7 +363,7 @@ class DB:
         deriv = list(map(WordID, deriv))
         return deriv
 
-    @db_api
+    @require_db
     def get_col_ids_with_word_id(self, id_: WordID) -> List[CollocationID]:
         """Returns all cols containing word"""
         sql = """select distinct col_id from Collocation_Junction
@@ -370,34 +372,34 @@ class DB:
         col_ids = list(map(CollocationID, col_ids))
         return col_ids
 
-    @db_api
+    @require_db
     def get_con_ids_with_coll_id_object(self, id_: CollocationID) -> List[ConnID]:
         """Return all cons where object is given col"""
         sql = """select id from conn where object = (?)"""
         ids0 = self.execute(sql, id_)
         return ids0
 
-    @db_api
+    @require_db
     def get_con_ids_with_coll_id_predicate(self, id_: CollocationID) -> List[ConnID]:
         """Return all cons where predicate is given col"""
         sql = """select id from conn where predicate = (?)"""
         ids1 = self.execute(sql, id_)
         return ids1
 
-    @db_api
+    @require_db
     def get_con_ids_with_coll_id(self, id_: CollocationID) -> List[ConnID]:
         """Return all cons with given col"""
         return list(set(self.get_con_ids_with_coll_id_object(id_) +
                         self.get_con_ids_with_coll_id_predicate(id_)))
 
-    @db_api
+    @require_db
     def get_sentences_id_by_word_id(self, id_: WordID) -> List[SentenceID]:
         """Returns all sentences with word"""
         sql = """select distinct sentence_id from sentence_word_junction where word_id = (?)"""
         result = self.execute(sql, id_)
         return result
 
-    @db_api
+    @require_db
     def get_sg_id_by_name(self, name: str) -> SemanticGroupID:
         """Returns semantic group id by name"""
         sql = """select id from semantic_group where name = (?)"""
@@ -407,14 +409,14 @@ class DB:
             result = groups[0]
         return result
 
-    @db_api
+    @require_db
     def get_sentences_id_by_word(self, word: str) -> List[SentenceID]:
         """Returns sentences where word is met in text"""
         sql = """select id from Sentence where contents LIKE '%' || ? || '%' """
         sentences = self.execute(sql, word)
         return sentences
 
-    @db_api
+    @require_db
     def get_cols_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
         """Returns all col that have given semantic group"""
         logging.info("get_cols_of_sem_group %d" % sg)
@@ -422,14 +424,14 @@ class DB:
         result = self.execute(sql, sg)
         return result
 
-    @db_api
-    def add_or_update_sentence_record(self, sent: "ling.Sentence"):
+    @require_db
+    def add_or_update_sentence_record(self, sent: "sentence.Sentence"):
         """Inserts sentence into database"""
         logging.info("Updating sentence %s (wc %d)", sent.text, len(sent.words))
         #
         # add sentence record
         #
-        sql = "insert OR IGNORE into Sentence (contents) values (?)"
+        sql = "insert or ignore into Sentence (contents) values (?)"
         self.execute(sql, sent.text)
 
         sql = "select id from Sentence where contents = (?)"
@@ -450,7 +452,7 @@ class DB:
         #
         logging.info("Inserting %d words" % len(sent.words))
         word_ids = []
-        for idx, (word, start_idx) in enumerate(zip(sent.words, sent.word_start_idxs)):
+        for idx, (word, start_idx) in enumerate(zip(sent.words, sent.word_starts)):
             word_id = self.get_or_insert_word(word)
             junction_data = (sentence_id, word_id, idx, start_idx)
             sql = """insert into sentence_word_junction (sentence_id, word_id, idx, text_idx)
@@ -510,18 +512,18 @@ class DB:
 
         self.database.commit()
 
-    @db_api
+    @require_db
     def get_or_insert_word(self, word_str: str) -> WordID:
         if not word_str:
             logging.warning("Empty word supplied to get_or_insert_word")
         word_str = word_str.lower()
-        word = ling.Word.create(word_str)
+        word = ling.word.analyse_word(word_str)
         if word.initial_form is not None:
             initial_form_id = self.get_or_insert_word(word.initial_form)
         else:
             initial_form_id = None
         form_sql_data = (word.word, word.part_of_speech.value, initial_form_id, initial_form_id is not None)
-        sql = """insert OR IGNORE into word 
+        sql = """insert or ignore into word 
                  (word, part_of_speech, initial_form_id, has_initial_form) 
                  values (?, ?, ?, ?)"""
         self.execute(sql, *form_sql_data)
@@ -532,7 +534,7 @@ class DB:
         logging.info("Inserted word %s" % word)
         return word_id
 
-    @db_api
+    @require_db
     def add_sg(self, name: str) -> SemanticGroupID:
         sg = self.get_sg_id_by_name(name)
         if sg:
@@ -545,7 +547,7 @@ class DB:
             logging.info("Inserted semantic group %s" % name)
         return sg
         
-    @db_api 
+    @require_db 
     def remove_sg(self, id_: SemanticGroupID):
         # @TODO(hl): MAKE SURE NO LINKS TO DELETED SEMANTIC GROUP ARE STILL IN DB
         sg = self.get_sg(id_)
@@ -555,7 +557,7 @@ class DB:
             sql = """delete from semantic_group where id = (?)"""
             self.execute(sql, id_)
 
-    @db_api
+    @require_db
     def get_words_with_initial_form(self, word_id: WordID) -> List[WordID]:
         # Returns words with given initial form, not including initial form
         sql = """select id from word where initial_form_id = (?)"""

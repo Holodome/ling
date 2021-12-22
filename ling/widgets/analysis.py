@@ -76,6 +76,10 @@ class AnalysisWidget(QtWidgets.QMainWindow):
         self.delete_con_btn.clicked.connect(lambda: self.delete_con())
         self.union_col_btn.clicked.connect(lambda: self.union_col())
 
+    def save_changes_to_db(self):
+        self.session.db.add_or_update_sentence_record(self.sent_edit)
+        logging.info("Saved sentence changes to db")
+
     def init_for_db(self, filename: str):
         self.db_filename_le.setText(filename)
         cb = self.sg_cb
@@ -91,6 +95,7 @@ class AnalysisWidget(QtWidgets.QMainWindow):
     def init_for_sent(self, sent: str):
         self.sent_edit = ling.sentence.Sentence(self.session, sent)
         self.generate_sent_view()
+        self.save_changes_to_db()
 
     def generate_col_table(self):
         self.col_table.setRowCount(len(self.sent_edit.cols))
@@ -102,6 +107,7 @@ class AnalysisWidget(QtWidgets.QMainWindow):
             sg_it = QtWidgets.QTableWidgetItem(sg_name)
             self.col_table.setItem(idx, 0, col_it)
             self.col_table.setItem(idx, 1, sg_it)
+            # FIXME(hl): QT EATS SPACES IN WIDGET ITEMS!!!!
 
     def generate_con_table(self):
         self.con_table.setRowCount(len(self.sent_edit.cons))
@@ -163,13 +169,8 @@ class AnalysisWidget(QtWidgets.QMainWindow):
             selection_end = qt_cursor.selectionEnd()
             kind = self.sgs[self.sg_cb.currentIndex()][1]
             self.sent_edit.make_col_text_part(selection_start, selection_end, ling.sentence.SemanticGroup(kind))
+            self.save_changes_to_db()
             self.generate_sent_view()
-
-    @require(sent=True)
-    def make_con(self):
-        selected = ling.qt_helper.table_get_selected_rows(self.col_table)
-        self.sent_edit.make_con_from_list(selected)
-        self.generate_sent_view()
 
     @require(sent=True)
     def change_sg_col(self):
@@ -181,6 +182,7 @@ class AnalysisWidget(QtWidgets.QMainWindow):
             if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
                 dialog_selected = dialog.sg_cb.currentIndex()
                 self.sent_edit.change_semantic_group_for_col(selected, dialog_selected)
+                self.save_changes_to_db()
                 self.generate_sent_view()
 
     @require(sent=True)
@@ -194,6 +196,7 @@ class AnalysisWidget(QtWidgets.QMainWindow):
             if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
                 dialog_selected = [it.row() for it in dialog.word_list.selectionModel().selectedIndexes()]
                 self.sent_edit.remove_words_from_col(selected, dialog_selected)
+                self.save_changes_to_db()
                 self.generate_sent_view()
 
     @require(sent=True)
@@ -204,6 +207,7 @@ class AnalysisWidget(QtWidgets.QMainWindow):
                                            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
             if dialog.exec_() == QtWidgets.QMessageBox.Yes:
                 self.sent_edit.remove_cols(selected)
+                self.save_changes_to_db()
                 self.generate_sent_view()
 
     @require(sent=True)
@@ -215,17 +219,32 @@ class AnalysisWidget(QtWidgets.QMainWindow):
             if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
                 dialog_selected_sg = dialog.sg_cb.currentIndex()
                 self.sent_edit.join_cols(selected, dialog_selected_sg)
+                self.save_changes_to_db()
                 self.generate_sent_view()
 
     @require(sent=True)
-    def add_new_sg(self):
-        raise NotImplementedError
-
-    @require(sent=True)
-    def automake_con(self):
-        raise NotImplementedError
+    def make_con(self):
+        selected = ling.qt_helper.table_get_selected_rows(self.col_table)
+        self.sent_edit.make_con_from_list(selected)
+        self.save_changes_to_db()
+        self.generate_sent_view()
 
     @require(sent=True)
     def delete_con(self):
+        selected = ling.qt_helper.table_get_selected_rows(self.con_table)
+        if selected:
+            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Question, "Удаление", "Удалить?",
+                                           QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+            if dialog.exec_() == QtWidgets.QMessageBox.Yes:
+                self.sent_edit.remove_cons(selected)
+                self.save_changes_to_db()
+                self.generate_sent_view()
+
+    @require(sent=True)
+    def automake_con(self):
+        self.sent_edit.make_default_cons()
+
+    @require(sent=True)
+    def add_new_sg(self):
         raise NotImplementedError
 
