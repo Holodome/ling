@@ -19,7 +19,7 @@ class Session:
         logging.info("Config filename '%s'", config_filename)
         if os.path.exists(config_filename):
             try:
-                with open(config_filename, "r") as f:
+                with open(config_filename, "r", encoding="utf8") as f:
                     data = f.readline()
                     db_name = data.strip()
                     logging.info("Config db path: '%s'", db_name)
@@ -38,7 +38,7 @@ class Session:
         if save_config:
             try:
                 config_filename = get_config_filename()
-                with open(config_filename, "w") as f:
+                with open(config_filename, "w", encoding="utf8") as f:
                     f.write(db_name)
                 logging.info("Saved db '%s' to config", db_name)
             except OSError:

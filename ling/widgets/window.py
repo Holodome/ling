@@ -46,7 +46,8 @@ class Window(QtWidgets.QMainWindow):
 
     def load_db(self):
         if self.session.connected:
-            raise NotImplementedError
+            pass
+            # raise NotImplementedError
 
         filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open db", filter="*.sqlite")[0]
         if filename:

@@ -179,7 +179,7 @@ class DB:
         """
         Executes table creating script
         """
-        tables_create_query = open("sql/tables.sql").read()
+        tables_create_query = open("sql/tables.sql", encoding="utf8").read()
         self.cursor.executescript(tables_create_query)
         self.database.commit()
 

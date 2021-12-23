@@ -129,7 +129,7 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         text_filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open text (txt)", filter="*.txt")[0]
         if text_filename:
             try:
-                with open(text_filename, "r") as f:
+                with open(text_filename, "r", encoding="utf8") as f:
                     data = f.read()
                     self.init_for_text(data)
             except OSError:
