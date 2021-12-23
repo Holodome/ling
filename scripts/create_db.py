@@ -1,8 +1,9 @@
-from ling.db import *
 import traceback
-import ling.sentence
-import ling.session
+import sys
 
+sys.path.append("../ling")
+import ling.session
+import ling.sentence
 
 
 db_name = "test.sqlite"
