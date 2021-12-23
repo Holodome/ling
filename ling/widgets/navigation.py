@@ -6,6 +6,7 @@ from PyQt5 import QtWidgets, uic
 import ling.db
 from ling import qt_helper
 from ling.session import Session
+import ling.word
 from ling.widgets.db_connection_interface import DbConnectionInterface
 
 from typing import List
@@ -81,7 +82,7 @@ NAV_MODE_SUFFIXES: List[str] = [
 
 NAV_MODE_HEADERS: List[List[str]] = [
     ["Название", "Число слов", "Число сочетаний", "Число связей"],
-    ["Слово", "Часть речи", "Начальная форма", "Число записей", "Число сочетаний", "Число связей"],
+    ["Слово", "Часть речи", "Начальная форма", "Число записей", "Число сочетаний", "Число связей", "Число предложений"],
     ["Слово", "Часть речи", "Число сочетаний", "Число записей", "Число связей"],
     ["Сочетание", "Число записей", "Число связей"],
     ["Предикат", "Актант", "Число записей"],
@@ -201,7 +202,6 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             words_it = QtWidgets.QTableWidgetItem(str(nwords))
             cols_it = QtWidgets.QTableWidgetItem(str(ncols))
             cons_it = QtWidgets.QTableWidgetItem(str(ncons))
-            self.table.setRowCount(1)
             self.table.setItem(idx, 0, name_it)
             self.table.setItem(idx, 1, words_it)
             self.table.setItem(idx, 2, cols_it)
@@ -210,16 +210,101 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.table.resizeRowsToContents()
 
     def populate_words(self, words: List[ling.db.Word]):
-        raise NotImplementedError
+        self.init_mode(NAV_MODE_WORD)
+        self.table.setRowCount(len(words))
+        for idx, word in enumerate(words):
+            pos = ling.word.pos_to_russian(word.pos)
+            init = self.session.get_initial_form(word).word
+            # FIXME:
+            ntimes = 0
+            cols = self.session.db.get_col_ids_with_word_id(word.id)
+            ncons = 0
+            for col in cols:
+                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
+            ncols = len(cols)
+            nsents = len(self.session.db.get_sentences_id_by_word_id(word.id))
+            word_it = QtWidgets.QTableWidgetItem(word.word)
+            pos_it = QtWidgets.QTableWidgetItem(pos)
+            init_it = QtWidgets.QTableWidgetItem(init)
+            entr_it = QtWidgets.QTableWidgetItem(str(ntimes))
+            cols_it = QtWidgets.QTableWidgetItem(str(ncols))
+            cons_it = QtWidgets.QTableWidgetItem(str(ncons))
+            sents_it = QtWidgets.QTableWidgetItem(str(nsents))
+            self.table.setItem(idx, 0, word_it)
+            self.table.setItem(idx, 1, pos_it)
+            self.table.setItem(idx, 2, init_it)
+            self.table.setItem(idx, 3, entr_it)
+            self.table.setItem(idx, 4, cols_it)
+            self.table.setItem(idx, 5, cons_it)
+            self.table.setItem(idx, 6, sents_it)
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
 
     def populate_cols(self, cols: List[ling.db.Collocation]):
-        raise NotImplementedError
+        self.init_mode(NAV_MODE_SG)
+        self.table.setRowCount(len(sgs))
+        for idx, sg in enumerate(sgs):
+            nwords = len(self.session.get_words_of_sem_group(sg.id))
+            cols = self.session.db.get_cols_of_sem_group(sg.id)
+            ncons = 0
+            for col in cols:
+                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
+            ncols = len(cols)
+
+            name_it = QtWidgets.QTableWidgetItem(sg.name)
+            words_it = QtWidgets.QTableWidgetItem(str(nwords))
+            cols_it = QtWidgets.QTableWidgetItem(str(ncols))
+            cons_it = QtWidgets.QTableWidgetItem(str(ncons))
+            self.table.setItem(idx, 0, name_it)
+            self.table.setItem(idx, 1, words_it)
+            self.table.setItem(idx, 2, cols_it)
+            self.table.setItem(idx, 3, cons_it)
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
 
     def populate_cons(self, cons: List[ling.db.Connection]):
-        raise NotImplementedError
+        self.init_mode(NAV_MODE_SG)
+        self.table.setRowCount(len(sgs))
+        for idx, sg in enumerate(sgs):
+            nwords = len(self.session.get_words_of_sem_group(sg.id))
+            cols = self.session.db.get_cols_of_sem_group(sg.id)
+            ncons = 0
+            for col in cols:
+                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
+            ncols = len(cols)
+
+            name_it = QtWidgets.QTableWidgetItem(sg.name)
+            words_it = QtWidgets.QTableWidgetItem(str(nwords))
+            cols_it = QtWidgets.QTableWidgetItem(str(ncols))
+            cons_it = QtWidgets.QTableWidgetItem(str(ncons))
+            self.table.setItem(idx, 0, name_it)
+            self.table.setItem(idx, 1, words_it)
+            self.table.setItem(idx, 2, cols_it)
+            self.table.setItem(idx, 3, cons_it)
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
 
     def populate_sents(self, sents: List[ling.db.Sentence]):
-        raise NotImplementedError
+        self.init_mode(NAV_MODE_SG)
+        self.table.setRowCount(len(sgs))
+        for idx, sg in enumerate(sgs):
+            nwords = len(self.session.get_words_of_sem_group(sg.id))
+            cols = self.session.db.get_cols_of_sem_group(sg.id)
+            ncons = 0
+            for col in cols:
+                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
+            ncols = len(cols)
+
+            name_it = QtWidgets.QTableWidgetItem(sg.name)
+            words_it = QtWidgets.QTableWidgetItem(str(nwords))
+            cols_it = QtWidgets.QTableWidgetItem(str(ncols))
+            cons_it = QtWidgets.QTableWidgetItem(str(ncons))
+            self.table.setItem(idx, 0, name_it)
+            self.table.setItem(idx, 1, words_it)
+            self.table.setItem(idx, 2, cols_it)
+            self.table.setItem(idx, 3, cons_it)
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
 
     """
     GENERAL
@@ -231,19 +316,24 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
 
     def word_btn_general(self):
         all_words = self.session.db.get_all_words()
+        self.populate_words(all_words)
 
     def word_init_btn_general(self):
         all_words = self.session.db.get_all_words()
         init_words = list(filter(lambda it: it.initial_form_id is None, all_words))
+        raise NotImplementedError
 
     def col_btn_general(self):
         all_cols = self.session.db.get_all_cols()
+        self.populate_cols(all_cols)
 
     def con_btn_general(self):
         all_cons = self.session.db.get_all_cons()
+        self.populate_cons(all_cons)
 
     def sent_btn_general(self):
         all_sents = self.session.db.get_all_sentences()
+        self.populate_sents(all_sents)
 
     """
     SG

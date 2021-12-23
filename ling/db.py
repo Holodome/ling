@@ -74,6 +74,8 @@ class Word:
     initial_form_id: Union[WordID, None]
     # Word for in russian, lowercase
     word: str
+    # Part of speech
+    pos: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -205,7 +207,8 @@ class DB:
         for id_, init_id, form, pos, has_init in values:
             deriv = Word(WordID(id_),
                          WordID(init_id),
-                         form)
+                         form,
+                         pos)
             result.append(deriv)
         return result
 
@@ -395,7 +398,7 @@ class DB:
     @require_db
     def get_sentences_id_by_word_id(self, id_: WordID) -> List[SentenceID]:
         """Returns all sentences with word"""
-        sql = """select distinct sentence_id from sentence_word_junction where word_id = (?)"""
+        sql = """select distinct sent_id from sentence_word_junction where word_id = (?)"""
         result = self.execute(sql, id_)
         return result
 
@@ -522,7 +525,7 @@ class DB:
             initial_form_id = self.get_or_insert_word(word.initial_form)
         else:
             initial_form_id = None
-        form_sql_data = (word.word, word.part_of_speech.value, initial_form_id, initial_form_id is not None)
+        form_sql_data = (word.word, word.part_of_speech, initial_form_id, initial_form_id is not None)
         sql = """insert or ignore into word 
                  (word, part_of_speech, initial_form_id, has_initial_form) 
                  values (?, ?, ?, ?)"""
