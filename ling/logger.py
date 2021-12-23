@@ -2,11 +2,11 @@ import logging
 import os
 import sys
 import time
-
+import traceback as tb
+import tempfile as tf
+    
 
 def excepthook_override(cls, exception, traceback):
-    import traceback as tb
-    import tempfile as tf
     f = tf.TemporaryFile("w+")
     tb.print_exception(cls, exception, traceback, file=f)
     f.seek(os.SEEK_SET)
@@ -17,7 +17,7 @@ def init_logger():
     logs_folder = "logs"
     if not os.path.exists(logs_folder):
         os.mkdir(logs_folder)
-    log_filename = "log_%s.log" % time.asctime()
+    log_filename = "log_%s.log" % time.asctime().replace(" ", "")
     log_filepath = os.path.join(logs_folder, log_filename)
     logging.basicConfig(format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
                         datefmt='%m/%d/%Y %I:%M:%S %p',

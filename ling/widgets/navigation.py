@@ -97,13 +97,13 @@ NAV_MODE_BTNS: list[list[int]] = [
 
 class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
     def on_db_connection(self):
-        pass
+        raise NotImplementedError
 
     def on_db_connection_change(self):
-        pass
+        raise NotImplementedError
 
     def on_db_connection_loss(self):
-        pass
+        raise NotImplementedError
 
     def __init__(self, session: Session, parent=None):
         super().__init__(parent)
