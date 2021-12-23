@@ -3,6 +3,7 @@ from PyQt5 import QtWidgets, uic
 
 import functools
 import logging
+from typing import List, Tuple
 
 import ling.sentence
 import ling.text
@@ -42,9 +43,6 @@ def require(*, session: bool = False, text: bool = False, sent: bool = False):
 
 
 class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
-    def on_db_connection_change(self):
-        pass
-
     def on_db_connection_loss(self):
         pass
 
@@ -83,6 +81,7 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
 
     def init_for_db(self):
         cb = self.sg_cb
+        cb.clear()
         sgs = self.session.get_sg_list()
         self.sgs = sgs
         for name, _ in sgs:

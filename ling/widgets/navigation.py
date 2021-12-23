@@ -99,10 +99,7 @@ NAV_MODE_BTNS: List[List[int]] = [
 
 class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
     def on_db_connection(self):
-        raise NotImplementedError
-
-    def on_db_connection_change(self):
-        raise NotImplementedError
+        self.init_mode(NAV_MODE_GENERAL)
 
     def on_db_connection_loss(self):
         self.clear_table_data()
@@ -134,7 +131,6 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
     def clear_table_data(self):
         while self.table.rowCount():
             self.table.removeRow(0)
-
 
     def init_ui(self):
         self.premade_layouts = []

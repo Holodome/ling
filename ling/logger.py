@@ -4,7 +4,9 @@ import sys
 import time
 import traceback as tb
 import tempfile as tf
-    
+
+LOG_COUNT_MARGIN = 100
+
 
 def excepthook_override(cls, exception, traceback):
     f = tf.TemporaryFile("w+")
@@ -14,10 +16,18 @@ def excepthook_override(cls, exception, traceback):
 
 
 def init_logger():
-    logs_folder = "logs"
+    home_folder = os.path.expanduser("~")
+    logs_folder = os.path.join(home_folder, ".ling_logs")
     if not os.path.exists(logs_folder):
         os.mkdir(logs_folder)
-    log_filename = "log_%s.log" % time.asctime().replace(" ", "")
+    # Check if we need to cleanup a bit
+    logs = os.listdir(logs_folder)
+    if len(logs) > LOG_COUNT_MARGIN:
+        logs.sort(reverse=True)
+        while len(logs) > LOG_COUNT_MARGIN:
+            os.remove(logs.pop())
+
+    log_filename = "log_%d.log" % time.time()
     log_filepath = os.path.join(logs_folder, log_filename)
     logging.basicConfig(format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
                         datefmt='%m/%d/%Y %I:%M:%S %p',
