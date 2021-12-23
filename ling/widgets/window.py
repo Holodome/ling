@@ -1,15 +1,6 @@
-import PyQt5.Qt
 from PyQt5 import QtWidgets, uic
-
-import functools
 import logging
-
-import ling.sentence
-import ling.text
-import ling.qt_helper
 from ling.session import Session
-from ling.widgets.change_sg_col import ChangeSGColDialog
-from ling.widgets.delete_words_col import DeleteWordsColDialog
 from ling.widgets.analysis import AnalysisWidget
 from ling.widgets.navigation import NavigationWidget
 
@@ -28,6 +19,7 @@ class Window(QtWidgets.QMainWindow):
 
     def init_ui(self):
         self.load_db_btn.clicked.connect(lambda: self.load_db())
+        self.create_db_btn.clicked.connect(lambda: self.create_db())
 
         self.stacked = QtWidgets.QStackedWidget(self)
         self.stacked.addWidget(AnalysisWidget(self.session, self))
@@ -45,14 +37,26 @@ class Window(QtWidgets.QMainWindow):
         self.stacked.currentWidget().on_db_connection()
 
     def load_db(self):
-        if self.session.connected:
-            pass
-            # raise NotImplementedError
-
-        filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open db", filter="*.sqlite")[0]
+        filename = QtWidgets.QFileDialog.getOpenFileName(self, "Открыть базу данеых", filter="*.sqlite")[0]
         if filename:
+            if self.session.connected:
+                self.stacked.currentWidget().on_db_connection_loss()
+
             self.session.init_for_db(filename)
             self.init_for_db()
+
+            self.stacked.currentWidget().on_db_connection()
+
+    def create_db(self):
+        filename = QtWidgets.QFileDialog.getSaveFileName(self, "Создать базу данных", filter="*.sqlite")[0]
+        if filename:
+            if self.session.connected:
+                self.stacked.currentWidget().on_db_connection_loss()
+
+            self.session.init_for_db(filename)
+            self.init_for_db()
+
+            self.stacked.currentWidget().on_db_connection()
 
     def change_mode(self):
         if self.mode == MODE_ANALYSIS:

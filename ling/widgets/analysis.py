@@ -42,6 +42,12 @@ def require(*, session: bool = False, text: bool = False, sent: bool = False):
 
 
 class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
+    def on_db_connection_change(self):
+        pass
+
+    def on_db_connection_loss(self):
+        pass
+
     def __init__(self, session: Session, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
         self.session = session

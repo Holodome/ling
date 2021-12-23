@@ -109,6 +109,19 @@
      <string>___</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="create_db_btn">
+    <property name="geometry">
+     <rect>
+      <x>390</x>
+      <y>10</y>
+      <width>181</width>
+      <height>32</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Создать базу данных</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -116,7 +129,7 @@
      <x>0</x>
      <y>0</y>
      <width>1073</width>
-     <height>24</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

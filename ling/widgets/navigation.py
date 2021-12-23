@@ -105,7 +105,14 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         raise NotImplementedError
 
     def on_db_connection_loss(self):
-        raise NotImplementedError
+        self.clear_table_data()
+
+    def decorate(self, func):
+        if not self.session.connected:
+            msg = QtWidgets.QErrorMessage(self)
+            msg.showMessage("Необходима открытая база данных")
+            return
+        return func()
 
     def __init__(self, session: Session, parent=None):
         super().__init__(parent)
@@ -124,6 +131,11 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.table.setColumnCount(len(headers))
         self.table.setHorizontalHeaderLabels(headers)
 
+    def clear_table_data(self):
+        while self.table.rowCount():
+            self.table.removeRow(0)
+
+
     def init_ui(self):
         self.premade_layouts = []
         for idx, (suffix, buttons) in enumerate(zip(NAV_MODE_SUFFIXES, NAV_MODE_BTNS)):
@@ -135,7 +147,7 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
                 if button_function is None:
                     logging.critical("UNABLE TO FIND FUNCTION %s", function_cb_name)
                 button = QtWidgets.QPushButton(button_name)
-                button.clicked.connect(lambda: button_function(self))
+                button.clicked.connect(lambda: self.decorate(lambda: button_function()))
                 layout.addWidget(button)
             self.premade_layouts.append(layout)
 
