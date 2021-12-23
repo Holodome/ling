@@ -36,18 +36,16 @@
     <string>___</string>
    </property>
   </widget>
-  <widget class="QGroupBox" name="buttons">
+  <widget class="QWidget" name="gridLayoutWidget">
    <property name="geometry">
     <rect>
-     <x>849</x>
+     <x>840</x>
      <y>20</y>
-     <width>201</width>
+     <width>231</width>
      <height>541</height>
     </rect>
    </property>
-   <property name="title">
-    <string/>
-   </property>
+   <layout class="QGridLayout" name="buttons"/>
   </widget>
  </widget>
  <resources/>

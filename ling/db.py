@@ -217,7 +217,7 @@ class DB:
         logging.info("Queried %d cols", len(values))
         result = []
         for id_, kind, word_hash, text in values:
-            sql = """select word_id, idx from col_junction
+            sql = """select word_id, idx from collocation_junction
                      where col_id = (?)"""
             word_ids = self.execute(sql, id_)
             word_ids.sort(key=lambda it: it[1])
@@ -254,13 +254,13 @@ class DB:
         result = []
         for id_, contents in values:
             sql = """select con_id from Sentence_Connection_Junction
-                     where sentence_id = (?)"""
+                     where sent_id = (?)"""
             conn_ids = self.execute(sql, id_)
             sql = """select col_id from Sentence_Collocation_Junction
-                     where sentence_id = (?)"""
+                     where sent_id = (?)"""
             coll_ids = self.execute(sql, id_)
             sql = """select idx, word_id from sentence_word_junction
-                     where sentence_id = (?)"""
+                     where sent_id = (?)"""
             words_serialized = self.execute(sql, id_)
             words = list(flatten_by_idx(sorted(words_serialized, key=lambda it: it[0]), 1))
             sent = Sentence(SentenceID(id_),
