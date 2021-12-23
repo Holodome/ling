@@ -6,6 +6,8 @@ from PyQt5 import QtWidgets, uic
 from ling.session import Session
 from ling.widgets.db_connection_interface import DbConnectionInterface
 
+from typing import List
+
 # Buttons
 NAV_BTN_SG = 0x0
 NAV_BTN_WORD = 0x1
@@ -54,7 +56,7 @@ NAV_MODE_CON = 0x4
 NAV_MODE_SENT = 0x5
 NAV_MODE_GENERAL = 0x6
 
-NAV_MODE_NAMES: list[str] = [
+NAV_MODE_NAMES: List[str] = [
     "Семантические группы",
     "Слова",
     "Однокоренные слова",
@@ -64,7 +66,7 @@ NAV_MODE_NAMES: list[str] = [
     "Общий вид"
 ]
 
-NAV_MODE_SUFFIXES: list[str] = [
+NAV_MODE_SUFFIXES: List[str] = [
     "_sg",
     "_word",
     "_init_word",
@@ -74,7 +76,7 @@ NAV_MODE_SUFFIXES: list[str] = [
     "_general"
 ]
 
-NAV_MODE_HEADERS: list[list[str]] = [
+NAV_MODE_HEADERS: List[List[str]] = [
     ["Название", "Число слов", "Число сочетаний", "Число свзяей"],
     ["Слово", "Часть речи", "Начальная форма", "Число записей", "Число сочетаний", "Число связей"],
     ["Слово", "Часть речи", "Число сочетаний", "Число записей", "Число связей"],
@@ -84,7 +86,7 @@ NAV_MODE_HEADERS: list[list[str]] = [
     ["Число семантических групп", "Число слов", "Число начальных форм", "Число сочетаний", "Число связей", "Число предложений"]
 ]
 
-NAV_MODE_BTNS: list[list[int]] = [
+NAV_MODE_BTNS: List[List[int]] = [
     [NAV_BTN_ADD, NAV_BTN_DELETE, NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON],
     [NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT],
     [NAV_BTN_WORD, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT],

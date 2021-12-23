@@ -1,6 +1,6 @@
 import logging
 import os
-
+from typing import List
 import ling.db as db
 
 
@@ -44,15 +44,15 @@ class Session:
             except OSError:
                 logging.info("Failed to write config file")
 
-    def get_collocations_from_ids(self, ids: list[db.CollocationID]) -> list[db.Collocation]:
+    def get_collocations_from_ids(self, ids: List[db.CollocationID]) -> List[db.Collocation]:
         db_collocations = [self.db.get_col(col_id) for col_id in ids]
         return db_collocations
 
-    def get_connections_from_ids(self, ids: list[db.ConnID]) -> list[db.Connection]:
+    def get_connections_from_ids(self, ids: List[db.ConnID]) -> List[db.Connection]:
         db_collocations = [self.db.get_con(col_id) for col_id in ids]
         return db_collocations
 
-    def get_words_from_ids(self, ids: list[db.WordID]) -> list[db.Word]:
+    def get_words_from_ids(self, ids: List[db.WordID]) -> List[db.Word]:
         db_words = [self.db.get_word(id_) for id_ in ids]
         return db_words
 
@@ -68,7 +68,7 @@ class Session:
     def get_initial_form_by_id(self, word_id: db.WordID) -> db.Word:
         return self.get_initial_form(self.db.get_word(word_id))
 
-    def get_words_of_sem_group(self, sg: db.SemanticGroupID) -> list[db.WordID]:
+    def get_words_of_sem_group(self, sg: db.SemanticGroupID) -> List[db.WordID]:
         # @TODO(hl): SPEED
         coll_ids = self.db.get_cols_of_sem_group(sg)
         colls = self.get_collocations_from_ids(coll_ids)
@@ -78,7 +78,7 @@ class Session:
             result.extend(coll.words)
         return result
 
-    def get_connection_ids_with_word_id(self, id_: db.WordID) -> list[db.ConnID]:
+    def get_connection_ids_with_word_id(self, id_: db.WordID) -> List[db.ConnID]:
         # @TODO(hl): Speed
         collocation_ids = self.db.get_col_ids_with_word_id(id_)
         result = []
@@ -91,7 +91,7 @@ class Session:
         result_id = self.db.get_sg_id_by_name("Предикат")
         return result_id
 
-    def get_sg_list(self) -> list[tuple[str, int]]:
+    def get_sg_list(self) -> List[tuple[str, int]]:
         db_sgs = self.db.get_all_sgs()
         result = []
         if db_sgs:

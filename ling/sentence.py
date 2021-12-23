@@ -1,10 +1,10 @@
 import dataclasses
 import logging
-import typing
+from typing import List, NewType
 
 from ling.session import Session
 
-SemanticGroup = typing.NewType("SemanticGroup", int)
+SemanticGroup = NewType("SemanticGroup", int)
 
 # https://en.wikipedia.org/wiki/Web_colors#HTML_color_names
 COLOR_TABLE = [
@@ -72,13 +72,13 @@ class Sentence:
                 non_word_parts.append(text[non_word_start:cursor])
                 non_word_starts.append(non_word_start)
 
-        self.non_word_parts: list[str] = non_word_parts
-        self.non_word_starts: list[int] = non_word_starts
-        self.words: list[str] = words
-        self.word_starts: list[int] = word_starts
+        self.non_word_parts: List[str] = non_word_parts
+        self.non_word_starts: List[int] = non_word_starts
+        self.words: List[str] = words
+        self.word_starts: List[int] = word_starts
 
-        self.cols: list[Collocation] = []
-        self.cons: list[Connection] = []
+        self.cols: List[Collocation] = []
+        self.cons: List[Connection] = []
 
     def get_word_sg(self, word_idx: int) -> int:
         """Return if word of given index has semantic group assigned to it.
@@ -100,7 +100,7 @@ class Sentence:
                 break
         return result
 
-    def get_pretty_string_with_words(self, word_idxs: list[int]) -> str:
+    def get_pretty_string_with_words(self, word_idxs: List[int]) -> str:
         result = ""
         last_word_idx = -1
         for word_idx in word_idxs:
@@ -124,7 +124,7 @@ class Sentence:
     def get_pretty_string_with_words_for_col(self, col_idx: int) -> str:
         return self.get_pretty_string_with_words(self.cols[col_idx].word_idxs)
 
-    def get_pretty_string_with_words_for_cols(self, col_idxs: list[int]) -> str:
+    def get_pretty_string_with_words_for_cols(self, col_idxs: List[int]) -> str:
         word_idxs = []
         for col_idx in col_idxs:
             word_idxs.extend(self.cols[col_idx].word_idxs)
@@ -136,7 +136,7 @@ class Sentence:
         self.cols.append(col)
         return result
 
-    def make_col(self, word_idxs: list[int], semantic_group: SemanticGroup) -> int:
+    def make_col(self, word_idxs: List[int], semantic_group: SemanticGroup) -> int:
         """Joins words from given index list in one collocation
            Words that are already in collocation are not touched
            If no words don't belong to any collocation already, do nothing
@@ -170,7 +170,7 @@ class Sentence:
         new_col = Collocation(old_col.word_idxs, new_semantic_group)
         self.cols[col_idx] = new_col
 
-    def remove_cols(self, col_ids: list[int]):
+    def remove_cols(self, col_ids: List[int]):
         """Removes cols and all cons associated with them"""
         new_cols = []
         mapped_indices = [-1 for _ in self.cols]
@@ -190,7 +190,7 @@ class Sentence:
                 new_cons.append(con)
         self.cons = new_cons
 
-    def join_cols(self, col_ids: list[int],
+    def join_cols(self, col_ids: List[int],
                   new_sg: SemanticGroup):
         """Joins collocations. All associated cons involving old
         collocations use new one instead
@@ -247,7 +247,7 @@ class Sentence:
         con = Connection(pred_idx, actant_idx)
         new_cons.append(con)
 
-    def make_con_from_list(self, idxs: list[int]):
+    def make_con_from_list(self, idxs: List[int]):
         """Makes connection based on collocation indices from list.
            Predicate must be in the list. If several predicates found, ones other than first are not connected"""
         raise NotImplementedError
@@ -309,7 +309,7 @@ class Sentence:
                     non_word_idx += 1
         return html
 
-    def remove_cons(self, idxs: list[int]):
+    def remove_cons(self, idxs: List[int]):
         """Deletes connections of given indices"""
         new_cons = []
         for idx, con in enumerate(self.cons):
@@ -317,7 +317,7 @@ class Sentence:
                 new_cons.append(con)
         self.cons = new_cons
 
-    def remove_words_from_col(self, col_idx: int, word_idxs: list[int]):
+    def remove_words_from_col(self, col_idx: int, word_idxs: List[int]):
         """Removes given word indexes from collocation.
            Indices are for collocation word list, not for the sentence words
            If number of words deleted equals total number of words in collocation,

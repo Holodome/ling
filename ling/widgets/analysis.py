@@ -47,7 +47,7 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.session = session
         self.sent_edit: ling.sentence.Sentence = None
         self.text_edit: ling.text.Text = None
-        self.sgs: list[tuple[str, int]] = []
+        self.sgs: List[tuple[str, int]] = []
 
         uic.loadUi("uis/analysis.ui", self)
         self.init_ui()

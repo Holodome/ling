@@ -2,10 +2,11 @@ import PyQt5.Qt
 from PyQt5 import QtWidgets, uic
 
 from ling.session import Session
+from typing import List
 
 
 class DeleteWordsColDialog(QtWidgets.QDialog):
-    def __init__(self, session: Session, col_str: str, words_list: list[str], parent=None):
+    def __init__(self, session: Session, col_str: str, words_list: List[str], parent=None):
         super().__init__(parent)
         self.session = session
         uic.loadUi("uis/delete_words_col.ui", self)
