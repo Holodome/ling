@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List
+from typing import List, Tuple
 import ling.db as db
 
 
@@ -91,7 +91,7 @@ class Session:
         result_id = self.db.get_sg_id_by_name("Предикат")
         return result_id
 
-    def get_sg_list(self) -> List[tuple[str, int]]:
+    def get_sg_list(self) -> List[Tuple[str, int]]:
         db_sgs = self.db.get_all_sgs()
         result = []
         if db_sgs:

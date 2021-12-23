@@ -1,6 +1,6 @@
 import dataclasses
 import logging
-from typing import List, NewType
+from typing import List, NewType, Tuple
 
 from ling.session import Session
 
@@ -32,7 +32,7 @@ def get_color_for_int(v: int):
 @dataclasses.dataclass(frozen=True)
 class Collocation:
     """Collocation that belongs to one sentence"""
-    word_idxs: tuple[int]
+    word_idxs: Tuple[int]
     sg: SemanticGroup
 
 
