@@ -84,9 +84,9 @@ NAV_MODE_HEADERS: List[List[str]] = [
     ["Название", "Число слов", "Число сочетаний", "Число связей"],
     ["Слово", "Часть речи", "Начальная форма", "Число записей", "Число сочетаний", "Число связей", "Число предложений"],
     ["Слово", "Часть речи", "Число сочетаний", "Число записей", "Число связей"],
-    ["Сочетание", "Число записей", "Число связей"],
-    ["Предикат", "Актант", "Число записей"],
-    ["Предложение"],
+    ["Сочетание", "Семантическая группа", "Число записей", "Число связей", "Число предложений"],
+    ["Предикат", "Актант", "Группа актанта", "Число записей", "Число предложений"],
+    ["Предложение", "Число слов", "Число сочетаний", "Число связей"],
     ["Число семантических групп", "Число слов", "Число начальных форм", "Число сочетаний", "Число связей", "Число предложений"]
 ]
 
@@ -215,7 +215,7 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         for idx, word in enumerate(words):
             pos = ling.word.pos_to_russian(word.pos)
             init = self.session.get_initial_form(word).word
-            # FIXME:
+            # FIXME!!!
             ntimes = 0
             cols = self.session.db.get_col_ids_with_word_id(word.id)
             ncons = 0
@@ -241,68 +241,77 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.table.resizeRowsToContents()
 
     def populate_cols(self, cols: List[ling.db.Collocation]):
-        self.init_mode(NAV_MODE_SG)
-        self.table.setRowCount(len(sgs))
-        for idx, sg in enumerate(sgs):
-            nwords = len(self.session.get_words_of_sem_group(sg.id))
-            cols = self.session.db.get_cols_of_sem_group(sg.id)
-            ncons = 0
-            for col in cols:
-                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
-            ncols = len(cols)
-
-            name_it = QtWidgets.QTableWidgetItem(sg.name)
-            words_it = QtWidgets.QTableWidgetItem(str(nwords))
-            cols_it = QtWidgets.QTableWidgetItem(str(ncols))
+        self.init_mode(NAV_MODE_COL)
+        self.table.setRowCount(len(cols))
+        for idx, col in enumerate(cols):
+            text = col.text
+            sg = self.session.db.get_sg(col.sg_id).name
+            # FIXME!!!
+            nentr = 0
+            ncons = len(self.session.db.get_con_ids_with_coll_id(col.id))
+            # FIXME!!!
+            nsents = 0
+            text_it = QtWidgets.QTableWidgetItem(text)
+            sg_it = QtWidgets.QTableWidgetItem(sg)
+            entr_it = QtWidgets.QTableWidgetItem(str(nentr))
             cons_it = QtWidgets.QTableWidgetItem(str(ncons))
-            self.table.setItem(idx, 0, name_it)
-            self.table.setItem(idx, 1, words_it)
-            self.table.setItem(idx, 2, cols_it)
+            sents_it = QtWidgets.QTableWidgetItem(str(nsents))
+            self.table.setItem(idx, 0, text_it)
+            self.table.setItem(idx, 1, sg_it)
+            self.table.setItem(idx, 2, entr_it)
             self.table.setItem(idx, 3, cons_it)
+            self.table.setItem(idx, 4, sents_it)
+
         self.table.resizeColumnsToContents()
         self.table.resizeRowsToContents()
 
     def populate_cons(self, cons: List[ling.db.Connection]):
-        self.init_mode(NAV_MODE_SG)
-        self.table.setRowCount(len(sgs))
-        for idx, sg in enumerate(sgs):
-            nwords = len(self.session.get_words_of_sem_group(sg.id))
-            cols = self.session.db.get_cols_of_sem_group(sg.id)
-            ncons = 0
-            for col in cols:
-                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
-            ncols = len(cols)
+        self.init_mode(NAV_MODE_CON)
+        self.table.setRowCount(len(cons))
+        for idx, con in enumerate(cons):
+            pred = self.session.db.get_col(con.predicate)
+            act = self.session.db.get_col(con.object_)
 
-            name_it = QtWidgets.QTableWidgetItem(sg.name)
-            words_it = QtWidgets.QTableWidgetItem(str(nwords))
-            cols_it = QtWidgets.QTableWidgetItem(str(ncols))
-            cons_it = QtWidgets.QTableWidgetItem(str(ncons))
-            self.table.setItem(idx, 0, name_it)
-            self.table.setItem(idx, 1, words_it)
-            self.table.setItem(idx, 2, cols_it)
-            self.table.setItem(idx, 3, cons_it)
+            pred_str = pred.text
+            act_str = act.text
+            act_kind = self.session.db.get_sg(act.sg_id).name
+            # FIXME:
+            nentr = 0
+            # FIXME:
+            nsent = 0
+
+            pred_it = QtWidgets.QTableWidgetItem(pred_str)
+            act_it = QtWidgets.QTableWidgetItem(act_str)
+            kind_it = QtWidgets.QTableWidgetItem(act_kind)
+            entr_it = QtWidgets.QTableWidgetItem(str(nentr))
+            sents_it = QtWidgets.QTableWidgetItem(str(nsent))
+            self.table.setItem(idx, 0, pred_it)
+            self.table.setItem(idx, 1, act_it)
+            self.table.setItem(idx, 2, kind_it)
+            self.table.setItem(idx, 3, entr_it)
+            self.table.setItem(idx, 4, sents_it)
+
         self.table.resizeColumnsToContents()
         self.table.resizeRowsToContents()
 
     def populate_sents(self, sents: List[ling.db.Sentence]):
-        self.init_mode(NAV_MODE_SG)
-        self.table.setRowCount(len(sgs))
-        for idx, sg in enumerate(sgs):
-            nwords = len(self.session.get_words_of_sem_group(sg.id))
-            cols = self.session.db.get_cols_of_sem_group(sg.id)
-            ncons = 0
-            for col in cols:
-                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
-            ncols = len(cols)
-
-            name_it = QtWidgets.QTableWidgetItem(sg.name)
+        self.init_mode(NAV_MODE_SENT)
+        self.table.setRowCount(len(sents))
+        for idx, sent in enumerate(sents):
+            text = sent.contents
+            nwords = len(sent.words)
+            ncols = len(sent.cols)
+            ncons = len(sent.cons)
+            text_it = QtWidgets.QTableWidgetItem(text)
             words_it = QtWidgets.QTableWidgetItem(str(nwords))
             cols_it = QtWidgets.QTableWidgetItem(str(ncols))
             cons_it = QtWidgets.QTableWidgetItem(str(ncons))
-            self.table.setItem(idx, 0, name_it)
+
+            self.table.setItem(idx, 0, text_it)
             self.table.setItem(idx, 1, words_it)
             self.table.setItem(idx, 2, cols_it)
             self.table.setItem(idx, 3, cons_it)
+
         self.table.resizeColumnsToContents()
         self.table.resizeRowsToContents()
 
