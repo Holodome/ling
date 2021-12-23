@@ -390,7 +390,7 @@ class DB:
         return ids1
 
     @require_db
-    def get_con_ids_with_coll_id(self, id_: CollocationID) -> List[ConnID]:
+    def get_con_ids_with_col_id(self, id_: CollocationID) -> List[ConnID]:
         """Return all cons with given col"""
         return list(set(self.get_con_ids_with_coll_id_object(id_) +
                         self.get_con_ids_with_coll_id_predicate(id_)))

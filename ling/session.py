@@ -44,21 +44,20 @@ class Session:
             except OSError:
                 logging.info("Failed to write config file")
 
-    def get_collocations_from_ids(self, ids: List[db.CollocationID]) -> List[db.Collocation]:
-        db_collocations = [self.db.get_col(col_id) for col_id in ids]
-        return db_collocations
+    def get_cols_from_ids(self, ids: List[db.CollocationID]) -> List[db.Collocation]:
+        return [self.db.get_col(col_id) for col_id in ids]
 
-    def get_connections_from_ids(self, ids: List[db.ConnID]) -> List[db.Connection]:
-        db_collocations = [self.db.get_con(col_id) for col_id in ids]
-        return db_collocations
+    def get_cons_from_ids(self, ids: List[db.ConnID]) -> List[db.Connection]:
+        return [self.db.get_con(col_id) for col_id in ids]
 
     def get_words_from_ids(self, ids: List[db.WordID]) -> List[db.Word]:
-        db_words = [self.db.get_word(id_) for id_ in ids]
-        return db_words
+        return [self.db.get_word(id_) for id_ in ids]
 
     def get_sents_from_ids(self, ids: List[db.SentenceID]) -> List[db.Sentence]:
-        db_sents = [self.db.get_sentence(id_) for id_ in ids]
-        return db_sents
+        return [self.db.get_sentence(id_) for id_ in ids]
+
+    def get_sgs_from_ids(self, ids: List[db.SemanticGroupID]) -> List[db.SemanticGroup]:
+        return [self.db.get_sg(id_) for id_ in ids]
 
     def create_sent_ctx_from_db(self, id_: db.SentenceID) -> "ling.Sentence":
         raise NotImplementedError
@@ -75,7 +74,7 @@ class Session:
     def get_words_of_sem_group(self, sg: db.SemanticGroupID) -> List[db.WordID]:
         # @TODO(hl): SPEED
         coll_ids = self.db.get_cols_of_sem_group(sg)
-        colls = self.get_collocations_from_ids(coll_ids)
+        colls = self.get_cols_from_ids(coll_ids)
         assert len(set(coll_ids)) == len(coll_ids)
         result = []
         for coll in colls:
@@ -87,7 +86,7 @@ class Session:
         collocation_ids = self.db.get_col_ids_with_word_id(id_)
         result = []
         for id_ in collocation_ids:
-            coll_conns = self.db.get_con_ids_with_coll_id(id_)
+            coll_conns = self.db.get_con_ids_with_col_id(id_)
             result.extend(coll_conns)
         return result
 

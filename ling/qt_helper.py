@@ -1,7 +1,7 @@
 from PyQt5 import QtWidgets
 
 
-def table_get_selected_rows(table):
+def table_get_sel_rows(table):
     selected_items = table.selectedItems()
     rows = set()
     for item in selected_items:

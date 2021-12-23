@@ -87,7 +87,8 @@ NAV_MODE_HEADERS: List[List[str]] = [
     ["Сочетание", "Семантическая группа", "Число записей", "Число связей", "Число предложений"],
     ["Предикат", "Актант", "Группа актанта", "Число записей", "Число предложений"],
     ["Предложение", "Число слов", "Число сочетаний", "Число связей"],
-    ["Число семантических групп", "Число слов", "Число начальных форм", "Число сочетаний", "Число связей", "Число предложений"]
+    ["Число семантических групп", "Число слов", "Число начальных форм", "Число сочетаний", "Число связей",
+     "Число предложений"]
 ]
 
 NAV_MODE_BTNS: List[List[int]] = [
@@ -175,7 +176,9 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
                 def build_lambda(a, b):
                     def wrapper():
                         return a(b)
+
                     return wrapper
+
                 button.clicked.connect(build_lambda(self.decorate, button_function))
                 layout.addWidget(button)
             widget = QtWidgets.QWidget()
@@ -193,7 +196,7 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             cols = self.session.db.get_cols_of_sem_group(sg.id)
             ncons = 0
             for col in cols:
-                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
+                ncons += len(self.session.db.get_con_ids_with_col_id(col))
             ncols = len(cols)
             qt_helper.add_table_row(self.table, 0, [
                 sg.name,
@@ -217,7 +220,7 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             cols = self.session.db.get_col_ids_with_word_id(word.id)
             ncons = 0
             for col in cols:
-                ncons += len(self.session.db.get_con_ids_with_coll_id(col))
+                ncons += len(self.session.db.get_con_ids_with_col_id(col))
             ncols = len(cols)
             nsents = len(self.session.db.get_sentences_id_by_word_id(word.id))
             qt_helper.add_table_row(self.table, idx, [
@@ -242,12 +245,12 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             sg = self.session.db.get_sg(col.sg_id).name
             # FIXME!!!
             nentr = 0
-            ncons = len(self.session.db.get_con_ids_with_coll_id(col.id))
+            ncons = len(self.session.db.get_con_ids_with_col_id(col.id))
             # FIXME!!!
             nsents = 0
             qt_helper.add_table_row(self.table, idx, [
                 text,
-                sg, 
+                sg,
                 str(nentr),
                 str(ncons),
                 str(nsents)
@@ -335,70 +338,91 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
 
     def word_init_btn_word(self):
         raise NotImplementedError
-        
+
     def col_btn_word(self):
-        selected_rows = qt_helper.table_get_selected_rows(self.table)
-        if selected_rows:
-            selected_words = [self.mode_storage[idx] for idx in selected_rows]
-            cols = []
-            for word in selected_words:
-                cols.extend(self.session.db.get_col_ids_with_word_id(word.id))
-            self.display_table_cols(self.session.get_collocations_from_ids(cols))
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            words = [self.mode_storage[idx]
+                     for idx in sel_rows]
+            cols = [col
+                    for word in words
+                    for col in self.session.db.get_col_ids_with_word_id(word.id)]
+            self.display_table_cols(self.session.get_cols_from_ids(cols))
 
     def con_btn_word(self):
-        selected_rows = qt_helper.table_get_selected_rows(self.table)
-        if selected_rows:
-            selected_words = [self.mode_storage[idx] for idx in selected_rows]
-            cols = []
-            for word in selected_words:
-                cols.extend(self.session.db.get_col_ids_with_word_id(word.id))
-            cons = []
-            for col in cols:
-                cons.extend(self.session.db.get_con_ids_with_coll_id(col))
-            self.display_table_cons(self.session.get_connections_from_ids(cons))
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            words = [self.mode_storage[idx] for idx in sel_rows]
+            cols = [col
+                    for word in words
+                    for col in self.session.db.get_col_ids_with_word_id(word.id)]
+            cons = [con
+                    for col in cols
+                    for con in self.session.db.get_con_ids_with_col_id(col)]
+            self.display_table_cons(self.session.get_cons_from_ids(cons))
 
     def sent_btn_word(self):
-        selected_rows = qt_helper.table_get_selected_rows(self.table)
-        if selected_rows:
-            selected_words = [self.mode_storage[idx] for idx in selected_rows]
-            sents = []
-            for word in selected_words:
-                sents.extend(self.session.db.get_sentences_id_by_word_id(word.id))
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            words = [self.mode_storage[idx]
+                     for idx in sel_rows]
+            sents = [sent
+                     for word in words
+                     for sent in self.session.db.get_sentences_id_by_word_id(word.id)]
             self.display_table_sents(self.session.get_sents_from_ids(sents))
-
-    """
-    INIT WORDS
-    """
-
-    def word_btn_init_word(self):
-        raise NotImplementedError
-        
-    def col_btn_init_word(self):
-        raise NotImplementedError
-        
-    def con_btn_init_word(self):
-        raise NotImplementedError
-        
-    def sent_btn_init_word(self):
-        raise NotImplementedError
 
     """
     COLS
     """
 
     def word_btn_col(self):
-        raise NotImplementedError
-        
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cols = [self.mode_storage[idx]
+                    for idx in sel_rows]
+            words = list({word
+                          for col in cols
+                          for word in col.words})
+            self.display_table_words(self.session.get_words_from_ids(words))
+
     def word_init_btn_col(self):
-        raise NotImplementedError
-        
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cols = [self.mode_storage[idx]
+                    for idx in sel_rows]
+            raise NotImplementedError
+
     def con_btn_col(self):
-        raise NotImplementedError
-        
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cols = [self.mode_storage[idx]
+                    for idx in sel_rows]
+            cons = list({con
+                         for col in cols
+                         for con in self.session.db.get_con_ids_with_col_id(col.id)})
+            self.display_table_cons(self.session.get_cons_from_ids(cons))
+
     def sent_btn_col(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cols = [self.mode_storage[idx]
+                    for idx in sel_rows]
+            sents = list({sent
+                          for col in cols
+                          for word in col.words
+                          for sent in self.session.db.get_sentences_id_by_word_id(word)})
+            self.display_table_sents(self.session.get_sents_from_ids(sents))
+
         raise NotImplementedError
-        
+
     def sg_btn_col(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cols = [self.mode_storage[idx] for idx in sel_rows]
+            sgs = list({col.sg
+                        for col in cols})
+            self.display_table_sgs(self.session.get_sgs_from_ids(sgs))
+
         raise NotImplementedError
 
     """
@@ -406,38 +430,93 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
     """
 
     def word_btn_con(self):
-        raise NotImplementedError
-        
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cons = [self.mode_storage[idx] for idx in sel_rows]
+            words = list({word
+                          for con in cons
+                          for col_id in (con.predicate, con.object_)
+                          for word in self.session.db.get_col(col_id).words})
+            self.display_table_words(self.session.get_words_from_ids(words))
+
     def word_init_btn_con(self):
-        raise NotImplementedError
-        
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cons = [self.mode_storage[idx] for idx in sel_rows]
+            raise NotImplementedError
+
     def col_btn_con(self):
-        raise NotImplementedError
-        
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cons = [self.mode_storage[idx] for idx in sel_rows]
+            cols = list({col_id
+                         for con in cons
+                         for col_id in (con.predicate, con.object_)})
+            self.display_table_cols(self.session.get_cols_from_ids(cols))
+
     def sent_btn_con(self):
-        raise NotImplementedError
-        
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cons = [self.mode_storage[idx] for idx in sel_rows]
+            sents = list({sent
+                          for con in cons
+                          for col_id in (con.predicate, con.object_)
+                          for word in self.session.db.get_col(col_id).words
+                          for sent in self.session.db.get_sentences_id_by_word_id(word)})
+            self.display_table_sents(self.session.get_sents_from_ids(sents))
+
     def sg_btn_con(self):
-        raise NotImplementedError
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            cons = [self.mode_storage[idx] for idx in sel_rows]
+            sgs = list({self.session.db.get_col(col_id).sg
+                        for con in cons
+                        for col_id in (con.predicate, con.object_)})
+            self.display_table_sgs(self.session.get_sgs_from_ids(sgs))
 
     """
     SENTS
     """
-        
+
     def word_btn_sent(self):
-        raise NotImplementedError
-        
-    def word_init_btn_sent(self):
-        raise NotImplementedError
-        
-    def col_btn_sent(self):
-        raise NotImplementedError
-        
-    def con_btn_sent(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sents = [self.mode_storage[idx] for idx in sel_rows]
+            words = list({word
+                          for sent in sents
+                          for word in sent.words})
+            self.display_table_words(self.session.get_words_from_ids(words))
         raise NotImplementedError
 
+    def word_init_btn_sent(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sents = [self.mode_storage[idx] for idx in sel_rows]
+            raise NotImplementedError
+
+    def col_btn_sent(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sents = [self.mode_storage[idx] for idx in sel_rows]
+            cols = list({col
+                         for sent in sents
+                         for col in sent.cols})
+            self.display_table_cols(self.session.get_cols_from_ids(cols))
+
+    def con_btn_sent(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sents = [self.mode_storage[idx] for idx in sel_rows]
+            cons = list({con
+                         for sent in sents
+                         for con in sent.cons})
+            self.display_table_cons(self.session.get_cons_from_ids(cons))
+
     def analysis_btn_sent(self):
-        raise NotImplementedError
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sents = [self.mode_storage[idx] for idx in sel_rows]
+            raise NotImplementedError
 
     """
     SG
@@ -450,13 +529,76 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         raise NotImplementedError
 
     def word_btn_sg(self):
-        raise NotImplementedError
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sgs = [self.mode_storage[idx] for idx in sel_rows]
+            words = list({word
+                          for sg in sgs
+                          for word in self.session.get_words_of_sem_group(sg)})
+            self.display_table_words(self.session.get_words_of_sem_group(words))
 
     def word_init_btn_sg(self):
-        raise NotImplementedError
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sgs = [self.mode_storage[idx] for idx in sel_rows]
+            raise NotImplementedError
 
     def col_btn_sg(self):
-        raise NotImplementedError
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sgs = [self.mode_storage[idx] for idx in sel_rows]
+            words = list({word
+                          for sg in sgs
+                          for word in self.session.get_words_of_sem_group(sg)})
+            cols = [col
+                    for word in words
+                    for col in self.session.db.get_col_ids_with_word_id(word.id)]
+            self.display_table_cols(self.session.get_cols_from_ids(cols))
 
     def con_btn_sg(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sgs = [self.mode_storage[idx] for idx in sel_rows]
+            words = list({word
+                          for sg in sgs
+                          for word in self.session.get_words_of_sem_group(sg)})
+            cols = [col
+                    for word in words
+                    for col in self.session.db.get_col_ids_with_word_id(word.id)]
+            cons = [con
+                    for col in cols
+                    for con in self.session.db.get_con_ids_with_col_id(col)]
+
+            self.display_table_cons(self.session.get_cons_from_ids(cons))
+
+    """
+    INIT WORDS
+    """
+
+    def word_btn_init_word(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            words = [self.mode_storage[idx] for idx in sel_rows]
+
+        raise NotImplementedError
+
+    def col_btn_init_word(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            words = [self.mode_storage[idx] for idx in sel_rows]
+
+        raise NotImplementedError
+
+    def con_btn_init_word(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            words = [self.mode_storage[idx] for idx in sel_rows]
+
+        raise NotImplementedError
+
+    def sent_btn_init_word(self):
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            words = [self.mode_storage[idx] for idx in sel_rows]
+
         raise NotImplementedError
