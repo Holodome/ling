@@ -19,8 +19,7 @@ NAV_BTN_ADD = 0x6
 NAV_BTN_DELETE = 0x7
 NAV_BTN_WORD_INIT = 0x8
 NAV_BTN_GENERAL = 0x9
-
-NAV_BTN_SENTINEL = NAV_BTN_GENERAL + 1
+NAV_BTN_ANALYSIS = 0xA
 
 NAV_BTN_NAMES = [
     "Семантические группы",
@@ -33,6 +32,7 @@ NAV_BTN_NAMES = [
     "Удалить",
     "Начальные формы",
     "Общий вид",
+    "К анализу"
 ]
 
 NAV_BTN_FUNCTION_NAMES = [
@@ -46,6 +46,7 @@ NAV_BTN_FUNCTION_NAMES = [
     "delete_btn",
     "word_init_btn",
     "general_btn",
+    "analysis_btn"
 ]
 
 NAV_MODE_SG = 0x0
@@ -92,7 +93,7 @@ NAV_MODE_BTNS: List[List[int]] = [
     [NAV_BTN_WORD, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT],
     [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_CON, NAV_BTN_SENT, NAV_BTN_SG],
     [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_SENT, NAV_BTN_SG],
-    [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON],
+    [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_ANALYSIS],
     [NAV_BTN_SG, NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT]
 ]
 
@@ -248,4 +249,6 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         
     def sent_btn_general(self):
         raise NotImplementedError
-        
+
+    def analysis_btn_sent(self):
+        raise NotImplementedError

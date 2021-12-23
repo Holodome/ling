@@ -2,6 +2,7 @@ import dataclasses
 import pymorphy2
 import enum
 import typing
+import functools
 
 
 morph = pymorphy2.MorphAnalyzer()
@@ -45,7 +46,7 @@ class PartOfSpeech(enum.Enum):
             "PRCL": PartOfSpeech.PRCL,
             "INTJ": PartOfSpeech.INTJ,
         }
-        return pymorphy_to_pos_dict.get(pm)
+        return pymorphy_to_pos_dict.get(pm, PartOfSpeech.NONE)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -55,6 +56,7 @@ class Word:
     part_of_speech: PartOfSpeech
 
 
+@functools.lru_cache(1024)
 def analyse_word(word: str) -> typing.Union[Word, None]:
     if word.isnumeric():
         return Word(word, None, PartOfSpeech.NUMR)

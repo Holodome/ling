@@ -8,6 +8,7 @@ from typing import List, Tuple
 import ling.sentence
 import ling.text
 import ling.qt_helper
+from ling import qt_helper
 from ling.session import Session
 from ling.widgets.change_sg_col import ChangeSGColDialog
 from ling.widgets.db_connection_interface import DbConnectionInterface
@@ -121,15 +122,21 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.con_table.resizeRowsToContents()
 
     def generate_sent_view(self):
-        self.generate_col_table()
-        self.generate_con_table()
-        html = self.sent_edit.get_colored_html()
-        self.sent_field.setHtml(html)
+        if self.sent_edit is not None:
+            self.generate_col_table()
+            self.generate_con_table()
+            html = self.sent_edit.get_colored_html()
+            self.sent_field.setHtml(html)
+        else:
+            qt_helper.clear_table(self.col_table)
+            qt_helper.clear_table(self.con_table)
+            self.sent_field.setPlainText("")
 
     @require(session=True)
     def load_text(self):
         if self.sent_edit is not None:
-            raise NotImplementedError
+            self.sent_edit = None
+            self.generate_sent_view()
 
         text_filename = QtWidgets.QFileDialog.getOpenFileName(self, "Open text (txt)", filter="*.txt")[0]
         if text_filename:
