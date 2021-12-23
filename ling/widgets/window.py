@@ -21,6 +21,7 @@ class Window(QtWidgets.QMainWindow):
     def __init__(self, session: Session, parent=None):
         super().__init__(parent)
         self.session = session
+        self.mode: int
 
         uic.loadUi("uis/window.ui", self)
         self.init_ui()
