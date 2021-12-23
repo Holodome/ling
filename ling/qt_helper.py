@@ -1,3 +1,6 @@
+from PyQt5 import QtWidgets
+
+
 def table_get_selected_rows(table):
     selected_items = table.selectedItems()
     rows = set()
@@ -10,3 +13,9 @@ def table_get_selected_rows(table):
 def clear_table(table):
     while table.rowCount():
         table.removeRow(0)
+
+
+def add_table_row(table, row_idx, items):
+    for idx, entry in enumerate(items):
+        it = QtWidgets.QTableWidgetItem(entry)
+        table.setItem(row_idx, idx, it)

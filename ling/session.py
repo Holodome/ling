@@ -56,6 +56,10 @@ class Session:
         db_words = [self.db.get_word(id_) for id_ in ids]
         return db_words
 
+    def get_sents_from_ids(self, ids: List[db.SentenceID]) -> List[db.Sentence]:
+        db_sents = [self.db.get_sentence(id_) for id_ in ids]
+        return db_sents
+
     def create_sent_ctx_from_db(self, id_: db.SentenceID) -> "ling.Sentence":
         raise NotImplementedError
 
