@@ -359,14 +359,6 @@ class DB:
         return deriv[0]
 
     @require_db
-    def get_word_ids_by_word_part(self, word_part: str) -> List[WordID]:
-        """Returns word ids where word_part is met"""
-        sql = "select id from word where form LIKE (?)"
-        deriv = self.execute(sql, word_part)
-        deriv = list(map(WordID, deriv))
-        return deriv
-
-    @require_db
     def get_col_ids_with_word_id(self, id_: WordID) -> List[CollocationID]:
         """Returns all cols containing word"""
         sql = """select distinct col_id from Collocation_Junction
@@ -413,9 +405,9 @@ class DB:
         return result
 
     @require_db
-    def get_sentences_id_by_word(self, word: str) -> List[SentenceID]:
+    def get_word_ids_by_word_part(self, word: str) -> List[SentenceID]:
         """Returns sentences where word is met in text"""
-        sql = """select id from Sentence where contents LIKE '%' || ? || '%' """
+        sql = """select id from word where word LIKE '%' || ? || '%' """
         sentences = self.execute(sql, word)
         return sentences
 

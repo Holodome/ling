@@ -60,6 +60,7 @@ class Session:
         return [self.db.get_sg(id_) for id_ in ids]
 
     def create_sent_ctx_from_db(self, id_: db.SentenceID) -> "ling.Sentence":
+        sentence = self.db
         raise NotImplementedError
 
     def get_initial_form(self, word: db.Word) -> db.Word:

@@ -18,6 +18,7 @@ class Window(QtWidgets.QMainWindow):
         self.init_ui()
 
     def init_ui(self):
+        self.window().setWindowTitle("Ling")
         self.load_db_btn.clicked.connect(lambda: self.load_db())
         self.create_db_btn.clicked.connect(lambda: self.create_db())
 

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1083</width>
+    <width>1077</width>
     <height>577</height>
    </rect>
   </property>
@@ -40,12 +40,25 @@
    <property name="geometry">
     <rect>
      <x>840</x>
-     <y>20</y>
-     <width>221</width>
-     <height>531</height>
+     <y>40</y>
+     <width>211</width>
+     <height>511</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="buttons"/>
+  </widget>
+  <widget class="QPushButton" name="search_btn">
+   <property name="geometry">
+    <rect>
+     <x>840</x>
+     <y>10</y>
+     <width>201</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Поиск</string>
+   </property>
   </widget>
  </widget>
  <resources/>

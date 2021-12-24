@@ -44,7 +44,7 @@ def pos_from_pymorphy_str(pm: str):
         "PRCL": POS_PRCL,
         "INTJ": POS_INTJ,
     }
-    return pymorphy_to_pos_dict.get(pm, POS_.NONE)
+    return pymorphy_to_pos_dict.get(pm, POS_NONE)
 
 
 def pos_to_russian(pos: int):

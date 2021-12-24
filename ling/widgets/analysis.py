@@ -1,5 +1,5 @@
 import PyQt5.Qt
-from PyQt5 import QtWidgets, uic
+from PyQt5 import QtWidgets, uic, Qt
 
 import functools
 import logging
@@ -64,6 +64,9 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         if self.session.connected:
             self.init_for_db()
 
+        self.col_table.setEditTriggers(Qt.QTableWidget.NoEditTriggers)
+        self.con_table.setEditTriggers(Qt.QTableWidget.NoEditTriggers)
+
         self.choose_sent_btn.clicked.connect(lambda: self.choose_sent())
         self.load_text_btn.clicked.connect(lambda: self.load_text())
         self.make_col_btn.clicked.connect(lambda: self.make_col())
@@ -102,7 +105,6 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         for idx, col in enumerate(self.sent_edit.cols):
             pretty = self.sent_edit.get_pretty_string_with_words_for_col(idx)
             sg_name = self.sgs[col.sg][0]
-            print(pretty, sg_name)
             col_it = QtWidgets.QTableWidgetItem(pretty)
             sg_it = QtWidgets.QTableWidgetItem(sg_name)
             self.col_table.setItem(idx, 0, col_it)

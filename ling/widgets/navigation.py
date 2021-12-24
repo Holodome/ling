@@ -1,13 +1,14 @@
 import logging
 
 import PyQt5.Qt
-from PyQt5 import QtWidgets, uic
+from PyQt5 import QtWidgets, uic, QtGui, Qt
 
 import ling.db
 from ling import qt_helper
 from ling.session import Session
 import ling.word
 from ling.widgets.db_connection_interface import DbConnectionInterface
+from ling.widgets.word_search import WordSearchDialog
 
 from typing import List
 
@@ -97,7 +98,7 @@ NAV_MODE_BTNS: List[List[int]] = [
     [NAV_BTN_WORD, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT, NAV_BTN_GENERAL],
     [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_CON, NAV_BTN_SENT, NAV_BTN_SG, NAV_BTN_GENERAL],
     [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_SENT, NAV_BTN_SG, NAV_BTN_GENERAL],
-    [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_ANALYSIS, NAV_BTN_GENERAL],
+    [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_ANALYSIS, NAV_BTN_GENERAL, NAV_BTN_DELETE],
     [NAV_BTN_SG, NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT]
 ]
 
@@ -158,6 +159,8 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         qt_helper.clear_table(self.table)
 
     def init_ui(self):
+        self.search_btn.clicked.connect(lambda: self.decorate(self.search))
+        self.table.setEditTriggers(Qt.QTableWidget.NoEditTriggers)
         self.stacked = QtWidgets.QStackedWidget()
         for idx, (suffix, buttons) in enumerate(zip(NAV_MODE_SUFFIXES, NAV_MODE_BTNS)):
             layout = QtWidgets.QVBoxLayout()
@@ -170,7 +173,6 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
                         logging.critical("UNABLE TO FIND FUNCTION %s", function_cb_name)
                 else:
                     button_function = lambda: self.init_mode(NAV_MODE_GENERAL)
-                print(button_name)
                 button = QtWidgets.QPushButton(button_name)
 
                 def build_lambda(a, b):
@@ -185,6 +187,15 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             widget.setLayout(layout)
             self.stacked.addWidget(widget)
         self.buttons.addWidget(self.stacked)
+
+    def search(self):
+        dialog = WordSearchDialog(self.session, self)
+        if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
+            search_str = dialog.input.text()
+            if search_str:
+                words = self.session.db.get_word_ids_by_word_part(search_str)
+                print(search_str, words)
+                self.display_table_words(self.session.get_words_from_ids(words))
 
     def display_table_sgs(self, sgs: List[ling.db.SemanticGroup]):
         self.mode_storage = sgs
