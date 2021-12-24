@@ -104,7 +104,11 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.col_table.setRowCount(len(self.sent_edit.cols))
         for idx, col in enumerate(self.sent_edit.cols):
             pretty = self.sent_edit.get_pretty_string_with_words_for_col(idx)
-            sg_name = self.sgs[col.sg][0]
+            sg_name = ""
+            for name, id_ in self.sgs:
+                if id_ == col.sg:
+                    sg_name = name
+                    break
             col_it = QtWidgets.QTableWidgetItem(pretty)
             sg_it = QtWidgets.QTableWidgetItem(sg_name)
             self.col_table.setItem(idx, 0, col_it)
@@ -166,6 +170,8 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         if qt_cursor.hasSelection():
             selection_start = qt_cursor.selectionStart()
             selection_end = qt_cursor.selectionEnd()
+            idx = self.sg_cb.currentIndex()
+            print(idx, self.sgs[idx], self.sgs)
             kind = self.sgs[self.sg_cb.currentIndex()][1]
             self.sent_edit.make_col_text_part(selection_start, selection_end, ling.sentence.SemanticGroup(kind))
             self.save_changes_to_db()

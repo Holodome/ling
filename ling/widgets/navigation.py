@@ -612,29 +612,22 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         sel_rows = qt_helper.table_get_sel_rows(self.table)
         if sel_rows:
             sgs = [self.mode_storage[idx] for idx in sel_rows]
-            words = list({word
-                          for sg in sgs
-                          for word in self.session.get_words_of_sem_group(sg.id)})
-            cols = list({col
-                         for word in words
-                         for col in self.session.db.get_col_ids_with_word_id(word.id)})
-            self.display_table_cols(self.session.get_cols_from_ids(cols))
+            sg_ids = [sg.id for sg in sgs]
+            cols = list(col
+                        for col in self.session.db.get_all_cols()
+                        if col.sg_id in sg_ids)
+            self.display_table_cols(cols)
 
     def con_btn_sg(self):
         sel_rows = qt_helper.table_get_sel_rows(self.table)
         if sel_rows:
             sgs = [self.mode_storage[idx] for idx in sel_rows]
-            words = list({word
-                          for sg in sgs
-                          for word in self.session.get_words_of_sem_group(sg.id)})
-            cols = list({col
-                         for word in words
-                         for col in self.session.db.get_col_ids_with_word_id(word.id)})
-            cons = list({con
-                         for col in cols
-                         for con in self.session.db.get_con_ids_with_col_id(col)})
-
-            self.display_table_cons(self.session.get_cons_from_ids(cons))
+            sg_ids = [sg.id for sg in sgs]
+            cons = [con
+                    for con in self.session.db.get_all_cons()
+                    if self.session.db.get_col(con.predicate).sg_id in sg_ids
+                    or self.session.db.get_col(con.object_).sg_id in sg_ids]
+            self.display_table_cons(cons)
 
     """
     INIT WORDS
