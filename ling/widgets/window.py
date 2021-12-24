@@ -61,11 +61,11 @@ class Window(QtWidgets.QMainWindow):
     def change_mode(self):
         if self.mode == MODE_ANALYSIS:
             self.mode = MODE_NAVIGATION
-            self.change_mode_btn.setText("Перейти к навигации")
+            self.change_mode_btn.setText("Перейти к анализу")
             self.stacked.setCurrentIndex(1)
         else:
             self.mode = MODE_ANALYSIS
-            self.change_mode_btn.setText("Перейти к анализу")
+            self.change_mode_btn.setText("Перейти к навигации")
             self.stacked.setCurrentIndex(0)
 
         if self.session.connected:

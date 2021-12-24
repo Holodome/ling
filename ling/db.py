@@ -490,7 +490,7 @@ class DB:
                 words = list(map(lambda it: (word_ids[it[1]], col_id, it[0]), enumerate(col.word_idxs)))
                 self.cursor.executemany(sql, words)
             else:
-                logging.info("Collocation %d %s is already present " % (col.sg, str(col_words)))
+                logging.debug("Collocation %d %s is already present " % (col.sg, str(col_words)))
                 col_id = col_id[0]
 
             sql = """insert into Sentence_Collocation_Junction (sent_id, col_id)

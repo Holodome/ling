@@ -23,6 +23,7 @@ POS_PRCL = 0xC  # частица
 POS_INTJ = 0xD  # междометие
 POS_ADVB = 0xE  # наречие
 
+
 def pos_from_pymorphy_str(pm: str):
     pymorphy_to_pos_dict = {
         "NOUN": POS_NOUN,
