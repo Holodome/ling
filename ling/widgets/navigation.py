@@ -687,3 +687,6 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
                           for word in words
                           for sent in self.session.db.get_sentences_id_by_word_id(word)})
             self.display_table_sents(self.session.get_sents_from_ids(sents))
+
+    def delete_btn_sent(self):
+        raise NotImplementedError

@@ -25,7 +25,7 @@ def init_logger():
     if len(logs) > LOG_COUNT_MARGIN:
         logs.sort(reverse=True)
         while len(logs) > LOG_COUNT_MARGIN:
-            os.remove(logs.pop())
+            os.remove(os.path.join(logs_folder, logs.pop()))
 
     log_filename = "log_%d.log" % time.time()
     log_filepath = os.path.join(logs_folder, log_filename)

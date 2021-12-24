@@ -138,6 +138,21 @@ class DB:
         self.database = sqlite3.connect(filename)
         self.cursor = self.database.cursor()
         self.create_tables()
+        default_sgs = [
+            "Предикат",
+            "Объект",
+            "Агент",
+            "Инструмент",
+            "Локатив",
+            "Погодные условия",
+            "Высота",
+            "Режим",
+            "Угол наклона",
+            "Скорость"
+        ]
+        for sg_name in default_sgs:
+            self.add_sg(sg_name)
+
         logging.info("Opened DB %s", filename)
 
     def __del__(self):
