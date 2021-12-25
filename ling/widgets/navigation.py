@@ -616,7 +616,7 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             sgs = [self.mode_storage[idx] for idx in sel_rows]
             words = list({word
                           for sg in sgs
-                          for word in self.session.get_words_of_sem_group(sg.id)})
+                          for word in self.session.get_words_of_sg(sg.id)})
             self.display_table_words(self.session.get_words_from_ids(words))
 
     def word_init_btn_sg(self):
@@ -625,7 +625,7 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             sgs = [self.mode_storage[idx] for idx in sel_rows]
             words = list({word
                           for sg in sgs
-                          for word in self.session.get_words_of_sem_group(sg.id)})
+                          for word in self.session.get_words_of_sg(sg.id)})
             word_inits = list({self.session.db.get_word(word.initial_form_id)
                                for word in self.session.get_words_from_ids(words)
                                if word.initial_form_id is not None})
