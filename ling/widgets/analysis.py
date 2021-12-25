@@ -120,10 +120,11 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         for idx, con in enumerate(self.sent_edit.cons):
             pred_pretty = self.sent_edit.get_pretty_string_with_words_for_col(con.predicate_idx)
             actant_pretty = self.sent_edit.get_pretty_string_with_words_for_col(con.actant_idx)
+            print(pred_pretty, actant_pretty)
             col_it = QtWidgets.QTableWidgetItem(pred_pretty)
             sg_it = QtWidgets.QTableWidgetItem(actant_pretty)
-            self.col_table.setItem(idx, 0, col_it)
-            self.col_table.setItem(idx, 1, sg_it)
+            self.con_table.setItem(idx, 0, col_it)
+            self.con_table.setItem(idx, 1, sg_it)
         self.con_table.resizeColumnsToContents()
         self.con_table.resizeRowsToContents()
 
@@ -229,14 +230,14 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
 
     @require(sent=True)
     def make_con(self):
-        selected = ling.qt_helper.table_get_selected_rows(self.col_table)
+        selected = ling.qt_helper.table_get_sel_rows(self.col_table)
         self.sent_edit.make_con_from_list(selected)
         self.save_changes_to_db()
         self.generate_sent_view()
 
     @require(sent=True)
     def delete_con(self):
-        selected = ling.qt_helper.table_get_selected_rows(self.con_table)
+        selected = ling.qt_helper.table_get_sel_rows(self.con_table)
         if selected:
             dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Question, "Удаление", "Удалить?",
                                            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
@@ -248,6 +249,7 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
     @require(sent=True)
     def automake_con(self):
         self.sent_edit.make_default_cons()
+        self.generate_sent_view()
 
     @require(sent=True)
     def add_new_sg(self):
