@@ -60,8 +60,20 @@ class Session:
         return [self.db.get_sg(id_) for id_ in ids]
 
     def create_sent_ctx_from_db(self, id_: db.SentenceID) -> "ling.Sentence":
-        sentence = self.db
-        raise NotImplementedError
+        import ling.sentence
+        sent = self.db.get_sentence(id_)
+        sent_cols = self.get_cols_from_ids(sent.cols)
+        sent_cons = self.get_cons_from_ids(sent.cons)
+        cols = []
+        for db_col in sent_cols:
+            word_idxs = [sent.words.index(it) for it in db_col.words]
+            col = ling.sentence.Collocation(tuple(word_idxs), db_col.sg_id)
+            cols.append(col)
+        cons = []
+        for db_con in sent_cons:
+            cons.append(ling.sentence.Connection(sent.cols.index(db_con.predicate),
+                                                 sent.cols.index(db_con.object_)))
+        return ling.sentence.Sentence(self, sent.contents, cols, cons)
 
     def get_initial_form(self, word: db.Word) -> db.Word:
         # @NOTE(hl): Wrapper for conditional
@@ -72,9 +84,9 @@ class Session:
     def get_initial_form_by_id(self, word_id: db.WordID) -> db.Word:
         return self.get_initial_form(self.db.get_word(word_id))
 
-    def get_words_of_sem_group(self, sg: db.SemanticGroupID) -> List[db.WordID]:
+    def get_words_of_sg(self, sg: db.SemanticGroupID) -> List[db.WordID]:
         # @TODO(hl): SPEED
-        coll_ids = self.db.get_cols_of_sem_group(sg)
+        coll_ids = self.db.get_cols_of_sg(sg)
         colls = self.get_cols_from_ids(coll_ids)
         assert len(set(coll_ids)) == len(coll_ids)
         result = []

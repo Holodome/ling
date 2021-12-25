@@ -427,12 +427,41 @@ class DB:
         return sentences
 
     @require_db
-    def get_cols_of_sem_group(self, sg: SemanticGroupID) -> List[CollocationID]:
+    def get_cols_of_sg(self, sg: SemanticGroupID) -> List[CollocationID]:
         """Returns all col that have given semantic group"""
-        logging.info("get_cols_of_sem_group %d" % sg)
+        logging.info("get_cols_of_sg %d" % sg)
         sql = """select id from collocation where sg_id = (?)"""
         result = self.execute(sql, sg)
         return result
+
+    @require_db
+    def delete_sentence(self, sent_id: SentenceID):
+        sql = """delete from sentence where id = (?)"""
+        self.execute(sql, sent_id)
+
+        sql = """delete from Sentence_Collocation_Junction where sent_id = (?)"""
+        self.execute(sql, sent_id)
+
+        sql = """delete from Sentence_Connection_Junction where sent_id = (?)"""
+        self.execute(sql, sent_id)
+        sql = """delete from sentence_word_junction where sent_id = (?)"""
+        self.execute(sql, sent_id)
+
+        sql = """delete from collocation where id not in (
+            select col_id from sentence_collocation_junction
+        )"""
+        self.execute(sql)
+        sql = """delete from conn where id not in (
+            select con_id from sentence_connection_junction
+        )"""
+        self.execute(sql)
+        sql = """delete from word where id not in (
+            select word_id from sentence_word_junction
+        ) and id not in (
+            select initial_form_id from word 
+        )"""
+        self.execute(sql)
+        self.database.commit()
 
     @require_db
     def add_or_update_sentence_record(self, sent: "sentence.Sentence"):
@@ -457,6 +486,7 @@ class DB:
         self.execute(sql, sentence_id)
         sql = """delete from sentence_word_junction where sent_id = (?)"""
         self.execute(sql, sentence_id)
+
         #
         # now start populating database again
         #

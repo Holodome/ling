@@ -13,6 +13,7 @@ from ling.session import Session
 from ling.widgets.change_sg_col import ChangeSGColDialog
 from ling.widgets.db_connection_interface import DbConnectionInterface
 from ling.widgets.delete_words_col import DeleteWordsColDialog
+from ling.widgets.new_sg import NewSgDialog
 
 
 def require(*, session: bool = False, text: bool = False, sent: bool = False):
@@ -30,7 +31,7 @@ def require(*, session: bool = False, text: bool = False, sent: bool = False):
                 msg = QtWidgets.QErrorMessage(self)
                 msg.showMessage("Необходима открытая база данных")
                 return
-            if text and self.text_edit is None:
+            if text and self.text_edit is None and self.sent_edit is None:
                 msg = QtWidgets.QErrorMessage(self)
                 msg.showMessage("Необходим открытый текст")
                 return
@@ -120,7 +121,6 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         for idx, con in enumerate(self.sent_edit.cons):
             pred_pretty = self.sent_edit.get_pretty_string_with_words_for_col(con.predicate_idx)
             actant_pretty = self.sent_edit.get_pretty_string_with_words_for_col(con.actant_idx)
-            print(pred_pretty, actant_pretty)
             col_it = QtWidgets.QTableWidgetItem(pred_pretty)
             sg_it = QtWidgets.QTableWidgetItem(actant_pretty)
             self.con_table.setItem(idx, 0, col_it)
@@ -253,5 +253,15 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
 
     @require(sent=True)
     def add_new_sg(self):
-        raise NotImplementedError
+        dialog = NewSgDialog(self.session)
+        if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
+            name = dialog.input.text()
+            if self.session.db.get_sg_id_by_name(name):
+                msg = QtWidgets.QErrorMessage(self)
+                msg.showMessage("Семантическая группа '%s' уже существует" % name)
+            else:
+                self.session.db.add_sg(name)
 
+    def make_sent_edit_cb(self, sent):
+        self.sent_edit = sent
+        self.generate_sent_view()

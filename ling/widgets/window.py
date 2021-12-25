@@ -23,8 +23,9 @@ class Window(QtWidgets.QMainWindow):
         self.create_db_btn.clicked.connect(lambda: self.create_db())
 
         self.stacked = QtWidgets.QStackedWidget(self)
-        self.stacked.addWidget(AnalysisWidget(self.session, self))
-        self.stacked.addWidget(NavigationWidget(self.session, self))
+        analysis = AnalysisWidget(self.session, self)
+        self.stacked.addWidget(analysis)
+        self.stacked.addWidget(NavigationWidget(self.session, lambda x: self.change_mode() or analysis.make_sent_edit_cb(x), self))
         self.mode = MODE_NAVIGATION
         self.change_mode()
         self.change_mode_btn.clicked.connect(self.change_mode)

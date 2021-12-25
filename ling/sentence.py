@@ -45,7 +45,9 @@ class Connection:
 class Sentence:
     """An interface for sentence analysis"""
 
-    def __init__(self, session: Session, text: str):
+    def __init__(self, session: Session, text: str,
+                 cols: List[Collocation] = None,
+                 cons: List[Connection] = None):
         self.session = session
         """Creates sentence context for collocation and con creation"""
         self.text: str = text
@@ -77,8 +79,8 @@ class Sentence:
         self.words: List[str] = words
         self.word_starts: List[int] = word_starts
 
-        self.cols: List[Collocation] = []
-        self.cons: List[Connection] = []
+        self.cols: List[Collocation] = cols if cols is not None else []
+        self.cons: List[Connection] = cons if cons is not None else []
 
     def get_word_sg(self, word_idx: int) -> int:
         """Return if word of given index has semantic group assigned to it.

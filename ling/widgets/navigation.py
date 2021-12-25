@@ -8,6 +8,7 @@ from ling import qt_helper
 from ling.session import Session
 import ling.word
 from ling.widgets.db_connection_interface import DbConnectionInterface
+from ling.widgets.new_sg import NewSgDialog
 from ling.widgets.word_search import WordSearchDialog
 
 from typing import List
@@ -35,7 +36,7 @@ NAV_BTN_NAMES = [
     "Добавить",
     "Удалить",
     "Начальные формы",
-    "Общий вид",
+    "К статистике",
     "К анализу"
 ]
 
@@ -68,7 +69,7 @@ NAV_MODE_NAMES: List[str] = [
     "Сочетания",
     "Связи",
     "Предложения",
-    "Общий вид"
+    "Статистика"
 ]
 
 NAV_MODE_SUFFIXES: List[str] = [
@@ -98,7 +99,7 @@ NAV_MODE_BTNS: List[List[int]] = [
     [NAV_BTN_WORD, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT, NAV_BTN_GENERAL],
     [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_CON, NAV_BTN_SENT, NAV_BTN_SG, NAV_BTN_GENERAL],
     [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_SENT, NAV_BTN_SG, NAV_BTN_GENERAL],
-    [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_ANALYSIS, NAV_BTN_GENERAL, NAV_BTN_DELETE],
+    [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_ANALYSIS, NAV_BTN_DELETE, NAV_BTN_GENERAL],
     [NAV_BTN_SG, NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT]
 ]
 
@@ -117,10 +118,11 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             return
         return func()
 
-    def __init__(self, session: Session, parent=None):
+    def __init__(self, session: Session, make_sent_edit_cb, parent=None):
         super().__init__(parent)
         self.session = session
         self.mode: int
+        self.make_sent_edit_cb = make_sent_edit_cb
 
         uic.loadUi("uis/navigation.ui", self)
 
@@ -194,7 +196,6 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             search_str = dialog.input.text()
             if search_str:
                 words = self.session.db.get_word_ids_by_word_part(search_str)
-                print(search_str, words)
                 self.display_table_words(self.session.get_words_from_ids(words))
 
     def display_table_sgs(self, sgs: List[ling.db.SemanticGroup]):
@@ -203,8 +204,8 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.init_mode(NAV_MODE_SG)
         self.table.setRowCount(len(sgs))
         for idx, sg in enumerate(sgs):
-            nwords = len(self.session.get_words_of_sem_group(sg.id))
-            cols = self.session.db.get_cols_of_sem_group(sg.id)
+            nwords = len(self.session.get_words_of_sg(sg.id))
+            cols = self.session.db.get_cols_of_sg(sg.id)
             ncons = 0
             for col in cols:
                 ncons += len(self.session.db.get_con_ids_with_col_id(col))
@@ -225,7 +226,9 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.table.setRowCount(len(words))
         for idx, word in enumerate(words):
             pos = ling.word.pos_to_russian(word.pos)
-            init = self.session.get_initial_form(word).word
+            init = self.session.get_initial_form(word)
+            print(init, word)
+            init = init.word
             # FIXME!!!
             ntimes = 0
             cols = self.session.db.get_col_ids_with_word_id(word.id)
@@ -575,17 +578,37 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         sel_rows = qt_helper.table_get_sel_rows(self.table)
         if sel_rows:
             sents = [self.mode_storage[idx] for idx in sel_rows]
-            raise NotImplementedError
+            sent = sents[0]
+            ling_sent = self.session.create_sent_ctx_from_db(sent.id)
+            self.make_sent_edit_cb(ling_sent)
 
     """
     SG
     """
 
     def add_btn_sg(self):
-        raise NotImplementedError
+        dialog = NewSgDialog(self.session)
+        if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
+            name = dialog.input.text()
+            if self.session.db.get_sg_id_by_name(name):
+                msg = QtWidgets.QErrorMessage(self)
+                msg.showMessage("Семантическая группа '%s' уже существует" % name)
+            else:
+                self.session.db.add_sg(name)
 
     def delete_btn_sg(self):
-        raise NotImplementedError
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sgs = [self.mode_storage[idx] for idx in sel_rows]
+            cant_delete = []
+            for sg in sgs:
+                if self.session.db.get_cols_of_sg(sg.id):
+                    cant_delete.append(sg.name)
+                else:
+                    self.session.db.remove_sg(sg)
+            if cant_delete:
+                msg = QtWidgets.QErrorMessage(self)
+                msg.showMessage("Нельзя удалить семантические группы: %s (к ним привязаны сочетания)")
 
     def word_btn_sg(self):
         sel_rows = qt_helper.table_get_sel_rows(self.table)
@@ -682,4 +705,11 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
             self.display_table_sents(self.session.get_sents_from_ids(sents))
 
     def delete_btn_sent(self):
-        raise NotImplementedError
+        sel_rows = qt_helper.table_get_sel_rows(self.table)
+        if sel_rows:
+            sents = [self.mode_storage[idx] for idx in sel_rows]
+            for sent in sents:
+                self.session.db.delete_sentence(sent.id)
+            new_sents = list(filter(lambda it: it not in sents, self.mode_storage))
+            self.display_table_sents(new_sents)
+
