@@ -1,4 +1,9 @@
 import dataclasses
+import sys 
+import os
+import pathlib
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    os.environ["PYMORPHY2_DICT_PATH"] = str(pathlib.Path(sys._MEIPASS).joinpath('pymorphy2_dicts_ru/data'))
 import pymorphy2
 import typing
 import functools

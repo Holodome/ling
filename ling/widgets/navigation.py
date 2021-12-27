@@ -10,6 +10,7 @@ import ling.word
 from ling.widgets.db_connection_interface import DbConnectionInterface
 from ling.widgets.new_sg import NewSgDialog
 from ling.widgets.word_search import WordSearchDialog
+from uis_generated.navigation import Ui_Form
 
 from typing import List
 
@@ -104,7 +105,7 @@ NAV_MODE_BTNS: List[List[int]] = [
 ]
 
 
-class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
+class NavigationWidget(QtWidgets.QWidget, Ui_Form, DbConnectionInterface):
     def on_db_connection(self):
         self.init_mode(NAV_MODE_GENERAL)
 
@@ -123,8 +124,8 @@ class NavigationWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.session = session
         self.mode: int
         self.make_sent_edit_cb = make_sent_edit_cb
-
-        uic.loadUi("uis/navigation.ui", self)
+        self.setupUi(self)
+        # uic.loadUi("uis/navigation.ui", self)
 
         self.init_ui()
         self.init_mode(NAV_MODE_GENERAL)

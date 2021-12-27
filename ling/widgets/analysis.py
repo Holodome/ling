@@ -14,6 +14,7 @@ from ling.widgets.change_sg_col import ChangeSGColDialog
 from ling.widgets.db_connection_interface import DbConnectionInterface
 from ling.widgets.delete_words_col import DeleteWordsColDialog
 from ling.widgets.new_sg import NewSgDialog
+from uis_generated.analysis import Ui_Form
 
 
 def require(*, session: bool = False, text: bool = False, sent: bool = False):
@@ -44,18 +45,18 @@ def require(*, session: bool = False, text: bool = False, sent: bool = False):
     return decorator
 
 
-class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
+class AnalysisWidget(QtWidgets.QWidget, Ui_Form, DbConnectionInterface):
     def on_db_connection_loss(self):
         pass
 
     def __init__(self, session: Session, parent=None):
-        QtWidgets.QWidget.__init__(self, parent)
+        super().__init__(parent)
         self.session = session
         self.sent_edit: ling.sentence.Sentence = None
         self.text_edit: ling.text.Text = None
         self.sgs: List[Tuple[str, int]] = []
-
-        uic.loadUi("uis/analysis.ui", self)
+        self.setupUi(self)
+        # uic.loadUi("uis/analysis.ui", self)
         self.init_ui()
 
     def on_db_connection(self):
@@ -251,16 +252,17 @@ class AnalysisWidget(QtWidgets.QWidget, DbConnectionInterface):
         self.sent_edit.make_default_cons()
         self.generate_sent_view()
 
-    @require(sent=True)
+    @require(session=True)
     def add_new_sg(self):
         dialog = NewSgDialog(self.session)
         if dialog.exec_() == PyQt5.Qt.QDialog.Accepted:
-            name = dialog.input.text()
+            name = dialog.lineEdit.text()
             if self.session.db.get_sg_id_by_name(name):
                 msg = QtWidgets.QErrorMessage(self)
                 msg.showMessage("Семантическая группа '%s' уже существует" % name)
             else:
                 self.session.db.add_sg(name)
+                self.init_for_db()
 
     def make_sent_edit_cb(self, sent):
         self.sent_edit = sent

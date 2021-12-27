@@ -7,7 +7,7 @@ from typing import Union, List
 import logging
 import functools
 import dataclasses
-
+from ling.tables_create import TABLES
 import ling.word 
 
 
@@ -196,7 +196,7 @@ class DB:
         """
         Executes table creating script
         """
-        tables_create_query = open("sql/tables.sql", encoding="utf8").read()
+        tables_create_query = TABLES
         self.cursor.executescript(tables_create_query)
         self.database.commit()
 
@@ -563,15 +563,20 @@ class DB:
         else:
             initial_form_id = None
         form_sql_data = (word.word, word.part_of_speech, initial_form_id, initial_form_id is not None)
-        sql = """insert or ignore into word 
-                 (word, part_of_speech, initial_form_id, has_initial_form) 
-                 values (?, ?, ?, ?)"""
-        self.execute(sql, *form_sql_data)
+        sql = """select id from word where word = (?) and part_of_speech = (?) and initial_form_id = (?) and has_initial_form = (?)"""
+        ids = self.execute(sql, *form_sql_data)
+        if not ids:
+            sql = """insert or ignore into word 
+                    (word, part_of_speech, initial_form_id, has_initial_form) 
+                    values (?, ?, ?, ?)"""
+            self.execute(sql, *form_sql_data)
 
-        sql = """select id from word
-                 where word = (?) and part_of_speech = (?) and (initial_form_id = (?) or not has_initial_form) """
-        word_id = safe_unpack(self.execute(sql, *form_sql_data[:3]))
-        logging.info("Inserted word %s" % word)
+            sql = """select id from word
+                    where word = (?) and part_of_speech = (?) and (initial_form_id = (?) or not has_initial_form) """
+            word_id = safe_unpack(self.execute(sql, *form_sql_data[:3]))
+            logging.info("Inserted word %s" % word)
+        else:
+            logging.info("Word %s is already present" % word)
         return word_id
 
     @require_db
@@ -585,6 +590,7 @@ class DB:
             sg = self.get_sg_id_by_name(name)
             assert sg is not None and sg
             logging.info("Inserted semantic group %s" % name)
+            self.database.commit()
         return sg
         
     @require_db 
@@ -592,10 +598,11 @@ class DB:
         # @TODO(hl): MAKE SURE NO LINKS TO DELETED SEMANTIC GROUP ARE STILL IN DB
         sg = self.get_sg(id_)
         if sg is None:
-            logging.error("Semantic group %d does nto exist" % id_)
+            logging.error("Semantic group %d does not exist" % id_)
         else:
             sql = """delete from semantic_group where id = (?)"""
             self.execute(sql, id_)
+            self.database.commit()
 
     @require_db
     def get_words_with_initial_form(self, word_id: WordID) -> List[WordID]:
