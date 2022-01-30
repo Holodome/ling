@@ -611,4 +611,11 @@ class DB:
         word_ids = self.execute(sql, word_id)
         return word_ids
 
+    @require_db
+    def change_sg_name(self, sg_id: SemanticGroupID, name: str):
+        sql = """update semantic_group set name = (?) where id = (?)"""
+        self.execute(sql, name, sg_id)
+        self.database.commit()
+
+
 

@@ -259,7 +259,7 @@ class AnalysisWidget(QtWidgets.QWidget, Ui_Form, DbConnectionInterface):
             name = dialog.lineEdit.text()
             if self.session.db.get_sg_id_by_name(name):
                 msg = QtWidgets.QErrorMessage(self)
-                msg.showMessage("Семантическая группа '%s' уже существует" % name)
+                msg.showMessage("Семантическая роль '%s' уже существует" % name)
             else:
                 self.session.db.add_sg(name)
                 self.init_for_db()

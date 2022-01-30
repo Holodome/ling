@@ -141,7 +141,7 @@
    </column>
    <column>
     <property name="text">
-     <string>Семантическая группа</string>
+     <string>Семантическая роль</string>
     </property>
    </column>
   </widget>

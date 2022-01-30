@@ -26,9 +26,10 @@ NAV_BTN_DELETE = 0x7
 NAV_BTN_WORD_INIT = 0x8
 NAV_BTN_GENERAL = 0x9
 NAV_BTN_ANALYSIS = 0xA
+NAV_BTN_CHANGE_NAME = 0xB
 
 NAV_BTN_NAMES = [
-    "Семантические группы",
+    "Семантические роли",
     "Слова",
     "Сочетания",
     "Связи",
@@ -38,7 +39,8 @@ NAV_BTN_NAMES = [
     "Удалить",
     "Начальные формы",
     "К статистике",
-    "К анализу"
+    "К анализу",
+    "Изменить название"
 ]
 
 NAV_BTN_FUNCTION_NAMES = [
@@ -52,7 +54,8 @@ NAV_BTN_FUNCTION_NAMES = [
     "delete_btn",
     "word_init_btn",
     "general_btn",
-    "analysis_btn"
+    "analysis_btn",
+    "change_name_btn"
 ]
 
 NAV_MODE_SG = 0x0
@@ -64,7 +67,7 @@ NAV_MODE_SENT = 0x5
 NAV_MODE_GENERAL = 0x6
 
 NAV_MODE_NAMES: List[str] = [
-    "Семантические группы",
+    "Семантические роли",
     "Слова",
     "Однокоренные слова",
     "Сочетания",
@@ -87,15 +90,15 @@ NAV_MODE_HEADERS: List[List[str]] = [
     ["Название", "Число слов", "Число сочетаний", "Число связей"],
     ["Слово", "Часть речи", "Начальная форма", "Число записей", "Число сочетаний", "Число связей", "Число предложений"],
     ["Слово", "Часть речи", "Число сочетаний", "Число записей", "Число связей"],
-    ["Сочетание", "Семантическая группа", "Число записей", "Число связей", "Число предложений"],
-    ["Предикат", "Актант", "Группа актанта", "Число записей", "Число предложений"],
+    ["Сочетание", "Семантическая роль", "Число записей", "Число связей", "Число предложений"],
+    ["Предикат", "Актант", "Роль актанта", "Число записей", "Число предложений"],
     ["Предложение", "Число слов", "Число сочетаний", "Число связей"],
-    ["Число семантических групп", "Число слов", "Число начальных форм", "Число сочетаний", "Число связей",
+    ["Число семантических ролей", "Число слов", "Число начальных форм", "Число сочетаний", "Число связей",
      "Число предложений"]
 ]
 
 NAV_MODE_BTNS: List[List[int]] = [
-    [NAV_BTN_ADD, NAV_BTN_DELETE, NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_GENERAL],
+    [NAV_BTN_ADD, NAV_BTN_DELETE, NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_GENERAL, NAV_BTN_CHANGE_NAME],
     [NAV_BTN_WORD_INIT, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT, NAV_BTN_GENERAL],
     [NAV_BTN_WORD, NAV_BTN_COL, NAV_BTN_CON, NAV_BTN_SENT, NAV_BTN_GENERAL],
     [NAV_BTN_WORD, NAV_BTN_WORD_INIT, NAV_BTN_CON, NAV_BTN_SENT, NAV_BTN_SG, NAV_BTN_GENERAL],
@@ -593,7 +596,7 @@ class NavigationWidget(QtWidgets.QWidget, Ui_Form, DbConnectionInterface):
             name = dialog.input.text()
             if self.session.db.get_sg_id_by_name(name):
                 msg = QtWidgets.QErrorMessage(self)
-                msg.showMessage("Семантическая группа '%s' уже существует" % name)
+                msg.showMessage("Семантическая роль '%s' уже существует" % name)
             else:
                 self.session.db.add_sg(name)
 
@@ -609,7 +612,7 @@ class NavigationWidget(QtWidgets.QWidget, Ui_Form, DbConnectionInterface):
                     self.session.db.remove_sg(sg)
             if cant_delete:
                 msg = QtWidgets.QErrorMessage(self)
-                msg.showMessage("Нельзя удалить семантические группы: %s (к ним привязаны сочетания)")
+                msg.showMessage("Нельзя удалить семантические роли: %s (к ним привязаны сочетания)")
 
     def word_btn_sg(self):
         sel_rows = qt_helper.table_get_sel_rows(self.table)
@@ -652,6 +655,16 @@ class NavigationWidget(QtWidgets.QWidget, Ui_Form, DbConnectionInterface):
                     if self.session.db.get_col(con.predicate).sg_id in sg_ids
                     or self.session.db.get_col(con.object_).sg_id in sg_ids]
             self.display_table_cons(cons)
+
+    def change_name_btn_sg(self):
+       sel_rows = qt_helper.table_get_sel_rows(self.table)
+       if sel_rows:
+            sgs = [self.mode_storage[idx] for idx in sel_rows]
+            sg = sgs[0]
+            new_name, is_valid = QtWidgets.QInputDialog.getText(self, "Изменение названия", "Введите название:")
+            if is_valid:
+                self.session.db.change_sg_name(sg.id, new_name)
+                self.display_table_sgs([self.session.db.get_sg(sg.id) for sg in self.mode_storage])
 
     """
     INIT WORDS
