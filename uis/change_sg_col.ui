@@ -52,7 +52,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Выберите семантическую группу:</string>
+    <string>Выберите семантическую роль:</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_4">
